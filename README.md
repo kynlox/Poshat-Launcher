@@ -1,83 +1,193 @@
+<div align="center">
+
+<img src="poshat-logo.png" alt="Poshat Launcher" width="200" />
+
 # Poshat Launcher
 
-Minecraft-лаунчер на Tauri 2 (Rust + React). Поддерживает Fabric, Forge, NeoForge, Quilt, Vanilla.
+**Современный лаунчер Minecraft, созданный с вниманием к деталям.**
 
-**Версия:** 0.1.2  
-**Лицензия:** Закрытая (временно)
+[![Version](https://img.shields.io/badge/version-0.1.3-blue)](https://github.com/docilan/Poshat-Launcher/releases)
+[![License](https://img.shields.io/badge/license-closed-red)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)]()
+[![Rust](https://img.shields.io/badge/built%20with-Rust-orange)]()
+[![React](https://img.shields.io/badge/built%20with-React-61DAFB)]()
 
-## Возможности
+<br/>
 
-- Автономные инстансы (каждый со своей папкой mods/saves)
-- Установка Minecraft, библиотек, ассетов через lyceris
-- Каталог модов/шейдеров/ресурспаков (Modrinth)
-- Мультиаккаунт (оффлайн + Ely.by)
-- Автообновление
-- Экспорт/импорт сборок (.mrpack)
+[**Скачать**](https://github.com/docilan/Poshat-Launcher/releases/latest) · [**Сообщить об ошибке**](https://github.com/docilan/Poshat-Launcher/issues/new?template=bug_report.md) · [**Предложить идею**](https://github.com/docilan/Poshat-Launcher/issues/new?template=feature_request.md)
+
+</div>
+
+---
+
+## Почему Poshat Launcher?
+
+> Мы создали Poshat Launcher, потому что хотели лаунчер, который **выглядит современно**, работает **быстро** и **не перегружен** лишним.
+
+- **Мгновенный запуск** — Rust на бэкенде, нативная сборка через Tauri 2. Никакого Electron.
+- **Полная изоляция инстансов** — каждый мир в своей папке. Моды, сейвы, ресурспаки — ничего не смешивается.
+- **Каталог Modrinth** — установка модов, шейдеров и ресурспаков в пару кликов.
+- **Экспорт и импорт** — делись своими сборками через стандарт `.mrpack`.
+- **Мультиаккаунт** — оффлайн и [Ely.by](https://ely.by) из коробки.
+
+---
+
+## Ключевые возможности
+
+<table>
+<tr>
+<td width="50%">
+
+### Управление инстансами
+- Создание, переименование, удаление
+- Собственные обложки для каждого инстанса
 - Ярлыки на рабочем столе
+- Полная информация о размере на диске
 
-## Требования
+</td>
+<td width="50%">
 
-- Node.js 20+
-- Rust stable
-- Windows: WebView2 (обычно уже установлен)
-- Linux: `libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev`, `libgtk-3-dev`, `libayatana-appindicator3-dev`
+### Поддержка загрузчиков
+- Fabric
+- Forge
+- NeoForge
+- Quilt
+- Vanilla
+
+</td>
+</tr>
+<tr>
+<td>
+
+### Каталог контента
+- Моды с фильтрацией по версии
+- Шейдерпаки
+- Ресурспаки
+- Установка одним кликом
+
+</td>
+<td>
+
+### Под account'ами
+- Оффлайн-аккаунты
+- Авторизация через Ely.by
+- Мультиаккаунт
+- Быстрое переключение
+
+</td>
+</tr>
+</table>
+
+---
+
+## Технологический стек
+
+| Слой | Технологии |
+|------|-----------|
+| **Бэкенд** | Rust, Tauri 2, reqwest, serde |
+| **Фронтенд** | React 19, Vite 7, Tailwind CSS 3 |
+| **Сборка** | NSIS (Windows), `.deb` / AppImage (Linux) |
+| **API** | [Modrinth API](https://docs.modrinth.com/) |
+| **Безопасность** | Обфускация бандла, CSP-политики, анти-отладка |
+
+---
+
+## Скачать
+
+Зайдите на страницу [**Releases**](https://github.com/docilan/Poshat-Launcher/releases/latest) и скачайте установщик для вашей платформы:
+
+| Платформа | Формат | |
+|-----------|--------|-|
+| **Windows x64** | NSIS Installer (.exe) | [Скачать](https://github.com/docilan/Poshat-Launcher/releases/latest) |
+| **Windows x64** | Portable (.zip) | [Скачать](https://github.com/docilan/Poshat-Launcher/releases/latest) |
+| **Linux x64** | `.deb` / AppImage | Скоро |
+
+---
 
 ## Разработка
 
+### Требования
+
+- [Node.js](https://nodejs.org/) 20+
+- [Rust](https://rustup.rs/) stable
+- **Windows:** WebView2 (установлен по умолчанию в Windows 10/11)
+- **Linux:**
+
 ```bash
+sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libgtk-3-dev libayatana-appindicator3-dev
+```
+
+### Запуск в dev-режиме
+
+```bash
+git clone https://github.com/docilan/Poshat-Launcher.git
+cd Poshat-Launcher
 npm install
 npx tauri dev
 ```
 
-## Сборка
+### Сборка
 
 ```bash
 npm run build
 npx tauri build
 ```
 
+Результат: `src-tauri/target/release/bundle/`
+
+---
+
+## Структура проекта
+
+```
+src-tauri/src/           # Rust-бэкенд
+├── lib.rs               # Tauri Builder + IPC-команды
+├── instances.rs         # CRUD инстансов, экспорт/импорт
+├── launch.rs            # Запуск Minecraft
+├── mc_install.rs        # Установка клиента
+├── catalog.rs           # Modrinth API
+├── accounts.rs          # Аккаунты
+├── java.rs              # Java-детект
+├── loaders.rs           # Загрузчики (Fabric/Forge/...)
+├── http.rs              # HTTP-клиент
+├── paths.rs             # Директории приложения
+├── security.rs          # Анти-отладка
+├── store.rs             # Конфигурация
+└── versions.rs          # Версии Minecraft
+
+src/                     # React-фронтенд
+├── api/poshatAPI.ts     # IPC-мост → Tauri invoke
+├── app/page.jsx         # Главный layout
+├── components/          # UI-компоненты
+├── hooks/               # React-хуки
+└── utils/               # Утилиты
+```
+
+---
+
 ## Тесты
 
 ```bash
-# Rust (unit tests)
+# Rust unit tests
 cd src-tauri && cargo test --lib
 
 # Frontend (Vitest)
 npm run test
 
-# Clippy
+# Clippy (lint)
 cd src-tauri && cargo clippy --lib -- -D warnings
 ```
 
-## Структура проекта
-
-```
-src-tauri/src/
-├── main.rs           # Точка входа
-├── lib.rs            # Tauri Builder + команды
-├── accounts.rs       # Аккаунты (offline + elyby)
-├── catalog.rs        # Каталог Modrinth
-├── elyby.rs          # Авторизация Ely.by
-├── http.rs           # HTTP-клиент (reqwest + rustls)
-├── instances.rs      # Инстансы (CRUD, иконки, обложки)
-├── java.rs           # Java-детект (Mojang runtime)
-├── launch.rs         # Запуск Minecraft
-├── loaders.rs        # Версии загрузчиков (Fabric/Forge/...)
-├── mc_install.rs     # Установка клиента
-├── paths.rs          # Директории (%APPDATA%/.poshatlauncher/)
-├── security.rs       # Анти-отладка (Windows)
-├── store.rs          # Конфиг (store.json)
-└── versions.rs       # Версии Minecraft
-
-src/
-├── api/poshatAPI.ts  # Шим window.poshatAPI → Tauri invoke
-├── app/page.jsx      # Главный layout
-├── components/       # UI-компоненты
-├── data/             # Статические данные
-├── hooks/            # React-хуки
-└── utils/            # Утилиты
-```
+---
 
 ## Лицензия
 
-Закрытая. Временно.
+Проект находится под закрытой лицензией. Использование и распространение без разрешения автора запрещены.
+
+---
+
+<div align="center">
+
+**Сделано с заботой о деталях.**
+
+</div>
