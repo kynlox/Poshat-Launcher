@@ -12,7 +12,7 @@
 ;   3. Edit the draft, publish it — the installer will pick up the new version.
 
 #define MyAppName       "Poshat Launcher"
-#define MyAppVersion    "0.1.2"
+#define MyAppVersion    "0.1.3"
 #define MyAppPublisher  "Poshat"
 #define MyAppURL        "https://poshatlauncher.pages.dev/"
 #define MyAppExeName    "Poshat Launcher.exe"
