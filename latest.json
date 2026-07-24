@@ -1,0 +1,11 @@
+{
+  "version": "v0.1.3",
+  "notes": "Poshat Launcher v0.1.3 — export/import with progress, Modrinth, performance",
+  "pub_date": "2026-07-24T18:00:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "",
+      "url": "https://github.com/docilan/Poshat-Launcher/releases/download/v0.1.3/Poshat%20Launcher_0.1.3_x64-setup.exe"
+    }
+  }
+}
