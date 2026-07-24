@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/poshat-logo.png" />
+    <title>Poshat Launcher</title>
+    <style>
+      :root{--bg-primary:#0a0d16;--bg-secondary:#0c1020;--text-primary:#fff}
+      html,body,#root{height:100%;margin:0}body{overflow:hidden;background:var(--bg-primary);color:var(--text-primary);font-family:system-ui,sans-serif}
+      .launch-splash{height:100%;display:flex;align-items:center;justify-content:center;gap:14px;background:linear-gradient(135deg,var(--bg-primary),var(--bg-secondary));position:relative}
+      .launch-splash img{width:48px;height:48px;object-fit:contain}.launch-splash div{display:flex;flex-direction:column;gap:3px}.launch-splash strong{font-size:16px}.launch-splash span{font-size:11px;opacity:.58}
+      .launch-splash i{position:absolute;bottom:0;left:0;right:0;height:2px;background:rgba(127,127,127,.12);overflow:hidden}.launch-splash b{display:block;width:38%;height:100%;background:#8b5cf6;animation:splash-progress .75s ease-in-out infinite alternate}@keyframes splash-progress{to{transform:translateX(165%)}}
+    </style>
+    <script>
+      (()=>{try{const id=localStorage.getItem("poshat-theme")||"dark",themes={dark:{bg:["#0a0d16","#0c1020","#0c0f17"],text:["#fff","#d4d4d8","#a1a1aa"],accent:"violet",hue:"250"},midnight:{bg:["#050810","#070b16","#0a0e1a"],text:["#fff","#d4d4d8","#a1a1aa"],accent:"blue",hue:"220"},emerald:{bg:["#060f0a","#08120e","#0a1610"],text:["#fff","#d4d4d8","#a1a1aa"],accent:"emerald",hue:"160"},sunset:{bg:["#120a06","#140c08","#160e0a"],text:["#fff","#d4d4d8","#a1a1aa"],accent:"orange",hue:"25"},rose:{bg:["#120610","#140812","#160a14"],text:["#fff","#d4d4d8","#a1a1aa"],accent:"rose",hue:"330"},light:{bg:["#f0f2f5","#e8eaed","#ffffff"],text:["#18181b","#3f3f46","#52525b"],accent:"violet",hue:"250"}},t=themes[id]||themes.dark;document.documentElement.dataset.theme=id;document.documentElement.style.cssText=`--bg-primary:${t.bg[0]};--bg-secondary:${t.bg[1]};--bg-card:${t.bg[2]};--text-primary:${t.text[0]};--text-secondary:${t.text[1]};--text-muted:${t.text[2]};--accent:${t.accent};--accent-hue:${t.hue};color-scheme:${id==="light"?"light":"dark"}`;}catch{}})();
+    </script>
+    <script>
+      (()=>{try{const v=localStorage.getItem("poshat-animations");document.documentElement.dataset.animations=v==="false"?"disabled":"enabled";}catch{document.documentElement.dataset.animations="enabled";}})();
+    </script>
+  </head>
+  <body>
+    <div id="root"><main class="launch-splash"><img src="/poshat-logo.png" alt=""><div><strong>Poshat Launcher</strong><span>Подготавливаем лаунчер</span></div><i><b></b></i></main></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

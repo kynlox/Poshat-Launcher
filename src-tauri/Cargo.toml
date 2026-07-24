@@ -1,0 +1,89 @@
+[package]
+name = "poshat-launcher-rust"
+version = "0.1.2"
+description = "A Tauri App"
+authors = ["you"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "poshat_launcher_rust_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset", "image-png"] }
+tauri-plugin-opener = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# AppData / Roaming dir resolver — на Windows вернёт %APPDATA%.
+directories = "5"
+# Однократная ленивая инициализация для кеша путей и стора.
+once_cell = "1"
+# Мьютекс для безопасной записи в store.json из разных команд.
+parking_lot = "0.12"
+# Логирование (потом подключим через tracing-subscriber, пока заведём фасад).
+tracing = "0.1"
+thiserror = "1"
+# HTTP-клиент. rustls вместо native-tls — не тянем OpenSSL/Schannel зоопарк.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+# Tokio для async. Полная фича-флаг: нужны time/macros/rt-multi-thread/fs.
+tokio = { version = "1", features = ["full"] }
+# Парсинг ISO-8601 для releaseTime версий Mojang.
+chrono = { version = "0.4", default-features = false, features = ["std", "serde"] }
+# Эффективная конкурентная загрузка (futures::stream::iter().buffer_unordered),
+# плюс используем futures::FutureExt::shared в cancel-регистре.
+futures = "0.3"
+# Async-блокировки для разделяемых кешей внутри tokio.
+# parking_lot уже подключён выше — его не блокирующие локи используем
+# в коротких критических секциях; для асинхронных дедупликаций возьмём
+# tokio::sync::Mutex (он в фиче tokio = ["full"]).
+
+# Главная рабочая лошадка: lyceris делает за нас всю сложную работу по
+# установке клиента/библиотек/ассетов/нативов + Fabric/Quilt/Forge/NeoForge,
+# плюс автоустановку нужного Java-рантайма. Раньше всё это писали руками —
+# теперь делегируем библиотеке, как это устроено в @xmcl/installer.
+# Поддерживает свой Emitter с типизированными прогресс-событиями, которые
+# мы перепаковываем в Tauri-эвенты для UI. Cancel у самой lyceris нет —
+# реализуем через tokio::select! + Notify (cм. mc_install.rs).
+lyceris = "1.0"
+# uuid для генерации идентификаторов аккаунтов (v4) и парсинга/форматирования.
+uuid = { version = "1", features = ["v3", "v4"] }
+# MD5 для оффлайн-UUID (Mojang: MD5("OfflinePlayer:<name>") + UUIDv3 биты).
+# RustCrypto-реализация, без C-кода и без других транзитивных тяжёлых deps.
+md-5 = "0.10"
+# Шифрование строковых литералов на этапе компиляции. obfstr!("https://...")
+# → в бинаре лежит зашифрованный байтовый массив; в `strings program.exe`
+# URL/токены/тексты ошибок НЕ видны. Расшифровка inline при первом обращении.
+obfstr = "0.4"
+# Base64 для декодирования иконок инстансов.
+base64 = "0.22"
+zip = "2"
+# Профиль release: компромисс между «неприятно для реверса» и стабильным runtime.
+# - strip = "symbols": снимает имена функций и debug-info → бинарь анонимный.
+# - lto = "thin": межкрейтовая link-time-оптимизация в облегчённом виде.
+#   ВАЖНО: lto="fat" в связке с reqwest/tokio иногда даёт зависания async-задач
+#   (наблюдали вечную загрузку Modrinth/version-list). "thin" даёт почти ту же
+#   оптимизацию и обфускацию границ модулей, но без проблем с async.
+# - codegen-units = 1: один codegen-юнит → ещё агрессивнее оптимизирует.
+# - panic убран в "unwind" (по умолчанию). С "abort" reqwest/hyper терял часть
+#   путей восстановления и подвешивал стрим тела ответа.
+# - opt-level = 3: максимум оптимизаций (скорость > размер).
+# - overflow-checks/debug/incremental = false: чистый release без артефактов.
+[profile.release]
+opt-level = 3
+codegen-units = 1
+lto = "thin"
+strip = "symbols"
+debug = false
+incremental = false
+overflow-checks = false

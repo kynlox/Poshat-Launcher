@@ -1,0 +1,62 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Poshat Launcher",
+  "version": "0.1.2",
+  "identifier": "com.poshat.launcher",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Poshat Launcher",
+        "width": 920,
+        "height": 620,
+        "minWidth": 720,
+        "minHeight": 480,
+        "resizable": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: https://mc-heads.net https://minotar.net https://crafatar.com https://cdn.modrinth.com https://assets.modrinth.com https://i.imgur.com; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://api.modrinth.com https://api.ely.by; font-src 'self'; object-src 'none'; frame-src 'none'; form-action 'self'; base-uri 'self'",
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$CONFIG/.poshatlauncher/instances/**"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "createUpdaterArtifacts": true,
+    "windows": {
+      "nsis": {
+        "installMode": "both"
+      },
+      "signCommand": "signtool sign /f %WINDOWS_CERTIFICATE% /p %WINDOWS_CERTIFICATE_PASSWORD% /tr http://timestamp.digicert.com /td sha256 /fd sha256 /d %1 %1"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://poshatlauncher.pages.dev/updates/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQwNDU1MDk1NDEwRjMzRjQKUldUME13OUJsVkJGUUlUSnIyUjZqMWpKUkpZc2gyZytVeXBFQUs4T25vVnlRMC90a1kvVTBwS2wK",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}
