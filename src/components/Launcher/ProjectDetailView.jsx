@@ -60,7 +60,6 @@ const DETAIL_TABS = [
  * Дальше: галерея, описание (Modrinth markdown).
  * Снизу: таблица всех версий с ручной кнопкой "Скачать".
  */
-// Источник всегда Modrinth — CurseForge выпилен из проекта.
 const SOURCE = "modrinth";
 
 export function ProjectDetailView({

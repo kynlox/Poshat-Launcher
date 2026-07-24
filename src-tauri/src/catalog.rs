@@ -1,5 +1,4 @@
 // Каталог модов/шейдеров/ресурспаков/датапаков из Modrinth (api.modrinth.com/v2, без ключа).
-// CurseForge выпилен: требует персональный ключ, а Modrinth даёт то же без регистрации.
 // Структуры один-в-один с catalogService.js и poshatAPI.ts, чтобы перетягивание было drop-in.
 
 use std::path::{Path, PathBuf};
@@ -66,7 +65,7 @@ pub struct InstallVersionPayload {
     pub source: String,
     // Modrinth-ветка тянет файл по version_id напрямую и project_id не нужен.
     // Поле оставлено в payload, чтобы фронт продолжал слать стабильную форму
-    // запроса (как было при CurseForge) и чтобы будущий источник мог его взять.
+    // запроса и чтобы будущий источник мог его взять.
     #[serde(rename = "projectId", default)]
     #[allow(dead_code)]
     pub project_id: String,

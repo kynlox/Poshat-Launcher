@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use tauri::Emitter;
 
 use crate::paths::{ensure_dir, get_roots};
 
@@ -534,21 +535,45 @@ struct MrpackIndex<'a> {
     dependencies: std::collections::BTreeMap<String, String>,
 }
 
-pub fn export_instance_pack(id: &str) -> Result<PackResult, String> {
+pub fn export_instance_pack(
+    id: &str,
+    out_path: Option<String>,
+    app: Option<&tauri::AppHandle>,
+) -> Result<PackResult, String> {
     validate_id(id)?;
     let Some(meta) = read_meta(id) else {
         return Err(format!("Инстанс {} не найден", id));
     };
 
-    let roots = get_roots();
-    let exports = ensure_dir(roots.root.join("exports"));
+    if let Some(a) = app {
+        let _ = a.emit("export:progress", serde_json::json!({
+            "phase": "preparing",
+            "percent": 0,
+            "label": "Подготовка архива…",
+        }));
+    }
+
     let file_name = format!("{}.mrpack", sanitize_file_name(&meta.name));
-    let out_path = exports.join(&file_name);
+    let out_path = if let Some(p) = out_path {
+        std::path::PathBuf::from(p)
+    } else {
+        let roots = get_roots();
+        let exports = ensure_dir(roots.root.join("exports"));
+        exports.join(&file_name)
+    };
     let file = std::fs::File::create(&out_path)
         .map_err(|e| format!("Не удалось создать архив: {}", e))?;
     let mut zip = zip::ZipWriter::new(file);
     let opts = zip::write::SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
+        .compression_method(zip::CompressionMethod::Stored);
+
+    if let Some(a) = app {
+        let _ = a.emit("export:progress", serde_json::json!({
+            "phase": "metadata",
+            "percent": 5,
+            "label": "Запись метаданных…",
+        }));
+    }
 
     let mut deps = std::collections::BTreeMap::new();
     deps.insert("minecraft".to_string(), meta.mc_version.clone());
@@ -576,13 +601,31 @@ pub fn export_instance_pack(id: &str) -> Result<PackResult, String> {
 
     let mc_dir = game_dir_of(id);
     if mc_dir.exists() {
-        add_dir_to_zip(&mut zip, &mc_dir, &mc_dir, "overrides", opts)?;
+        let total = count_dir_files(&mc_dir);
+        let mut progress = ZipProgress { app, processed: 0, total };
+        add_dir_to_zip(&mut zip, &mc_dir, &mc_dir, "overrides", opts, &mut progress)?;
     }
     zip.finish().map_err(|e| format!("Не удалось закрыть архив: {}", e))?;
+
+    if let Some(a) = app {
+        let _ = a.emit("export:progress", serde_json::json!({
+            "phase": "done",
+            "percent": 100,
+            "label": "Готово!",
+        }));
+    }
     Ok(PackResult { path: out_path.to_string_lossy().into_owned(), file_name })
 }
 
-pub fn import_instance_pack(path: String) -> Result<InstanceView, String> {
+pub fn import_instance_pack(path: String, app: Option<&tauri::AppHandle>) -> Result<InstanceView, String> {
+    if let Some(a) = app {
+        let _ = a.emit("import:progress", serde_json::json!({
+            "phase": "reading",
+            "percent": 5,
+            "label": "Чтение архива…",
+        }));
+    }
+
     let file = std::fs::File::open(&path)
         .map_err(|e| format!("Не удалось открыть архив: {}", e))?;
     let mut zip = zip::ZipArchive::new(file)
@@ -634,6 +677,15 @@ pub fn import_instance_pack(path: String) -> Result<InstanceView, String> {
     })?;
 
     let dst_mc = game_dir_of(&created.id);
+    let total_files = zip.len() as u64;
+    if let Some(a) = app {
+        let _ = a.emit("import:progress", serde_json::json!({
+            "phase": "extracting",
+            "percent": 20,
+            "label": format!("Распаковка файлов… 0/{}", total_files),
+        }));
+    }
+    let mut extracted = 0u64;
     for i in 0..zip.len() {
         let mut f = zip.by_index(i).map_err(|e| e.to_string())?;
         let name = f.name().replace('\\', "/");
@@ -647,8 +699,61 @@ pub fn import_instance_pack(path: String) -> Result<InstanceView, String> {
             let mut dst = std::fs::File::create(&out).map_err(|e| e.to_string())?;
             std::io::copy(&mut f, &mut dst).map_err(|e| e.to_string())?;
         }
+        extracted += 1;
+        if extracted.is_multiple_of(3) || extracted == total_files {
+            let pct = (20.0 + (extracted as f64 / total_files.max(1) as f64) * 75.0).min(95.0) as u32;
+            if let Some(a) = app {
+                let _ = a.emit("import:progress", serde_json::json!({
+                    "phase": "extracting",
+                    "percent": pct,
+                    "label": format!("Распаковка файлов… {}/{}", extracted, total_files),
+                }));
+            }
+        }
+    }
+
+    if let Some(a) = app {
+        let _ = a.emit("import:progress", serde_json::json!({
+            "phase": "done",
+            "percent": 100,
+            "label": "Готово!",
+        }));
     }
     Ok(get_instance(&created.id).unwrap_or(created))
+}
+
+/// Папки, которые НЕ попадают в .mrpack (можно перекачать / пересобрать).
+const SKIP_DIRS: &[&str] = &[
+    "versions", "libraries", "assets", "logs",
+    "fabric-api", "net", "org",
+];
+
+fn should_skip_dir(name: &str) -> bool {
+    SKIP_DIRS.contains(&name)
+}
+
+fn count_dir_files(dir: &Path) -> u64 {
+    let mut count = 0u64;
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let is_dir = entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
+            if is_dir {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if !should_skip_dir(&name) {
+                    count += count_dir_files(&entry.path());
+                }
+            } else {
+                count += 1;
+            }
+        }
+    }
+    count
+}
+
+struct ZipProgress<'a> {
+    app: Option<&'a tauri::AppHandle>,
+    processed: u64,
+    total: u64,
 }
 
 fn add_dir_to_zip(
@@ -657,19 +762,43 @@ fn add_dir_to_zip(
     dir: &Path,
     prefix: &str,
     opts: zip::write::SimpleFileOptions,
+    progress: &mut ZipProgress<'_>,
 ) -> Result<(), String> {
     for entry in std::fs::read_dir(dir).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
+        let file_name = entry.file_name().to_string_lossy().to_string();
+
+        if entry.file_type().map_err(|e| e.to_string())?.is_dir()
+            && should_skip_dir(&file_name)
+        {
+            continue;
+        }
+
         let rel = path.strip_prefix(root).map_err(|e| e.to_string())?;
         let rel_name = rel.to_string_lossy().replace('\\', "/");
         let zip_name = format!("{}/{}", prefix, rel_name);
         if entry.file_type().map_err(|e| e.to_string())?.is_dir() {
-            add_dir_to_zip(zip, root, &path, prefix, opts)?;
+            add_dir_to_zip(zip, root, &path, prefix, opts, progress)?;
         } else {
+            let meta = entry.metadata().map_err(|e| e.to_string())?;
+            if meta.len() > 100 * 1024 * 1024 {
+                continue;
+            }
             zip.start_file(zip_name, opts).map_err(|e| e.to_string())?;
             let mut src = std::fs::File::open(&path).map_err(|e| e.to_string())?;
             std::io::copy(&mut src, zip).map_err(|e| e.to_string())?;
+            progress.processed += 1;
+            if progress.total > 0 && progress.processed.is_multiple_of(5) {
+                let pct = ((progress.processed as f64 / progress.total as f64) * 90.0 + 10.0).min(99.0) as u32;
+                if let Some(a) = progress.app {
+                    let _ = a.emit("export:progress", serde_json::json!({
+                        "phase": "archiving",
+                        "percent": pct,
+                        "label": format!("Упаковка файлов… {}/{}", progress.processed, progress.total),
+                    }));
+                }
+            }
         }
     }
     Ok(())
@@ -1119,8 +1248,17 @@ pub fn create_desktop_shortcut(
             desc = ps_escape(&format!("Запуск инстанса «{}» в Poshat Launcher", meta.name)),
         );
 
-        let output = std::process::Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        #[cfg(target_os = "windows")]
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+        let mut cmd = std::process::Command::new("powershell");
+        cmd.args(["-NoProfile", "-NonInteractive", "-Command", &script]);
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+        let output = cmd
             .output()
             .map_err(|e| format!("Не удалось запустить PowerShell: {}", e))?;
 

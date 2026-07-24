@@ -311,13 +311,24 @@ fn instances_duplicate(id: String) -> Result<instances::InstanceView, String> {
 }
 
 #[tauri::command]
-fn instances_export_pack(id: String) -> Result<instances::PackResult, String> {
-    instances::export_instance_pack(&id)
+async fn instances_export_pack(
+    app: tauri::AppHandle,
+    id: String,
+    out_path: Option<String>,
+) -> Result<instances::PackResult, String> {
+    tokio::task::spawn_blocking(move || instances::export_instance_pack(&id, out_path, Some(&app)))
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
 }
 
 #[tauri::command]
-fn instances_import_pack(path: String) -> Result<instances::InstanceView, String> {
-    instances::import_instance_pack(path)
+async fn instances_import_pack(
+    app: tauri::AppHandle,
+    path: String,
+) -> Result<instances::InstanceView, String> {
+    tokio::task::spawn_blocking(move || instances::import_instance_pack(path, Some(&app)))
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
 }
 
 #[tauri::command]

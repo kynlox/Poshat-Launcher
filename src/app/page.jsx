@@ -158,7 +158,7 @@ export default function PoshatLauncherPage() {
 
   useEffect(() => {
     if (!api || activeSection !== "instances") return;
-    reloadInstances();
+    if (launcherInstances.length === 0) reloadInstances();
   }, [api, activeSection]);
 
   // Subscribe to install/launch events
@@ -518,13 +518,6 @@ export default function PoshatLauncherPage() {
     return path;
   };
 
-  const handleSetVideoCover = async (id, fileName, base64Data) => {
-    if (!api) throw new Error("API недоступен");
-    const path = await api.instances.setVideoCover(id, fileName, base64Data);
-    await reloadInstances();
-    return path;
-  };
-
   const [diskSizes, setDiskSizes] = useState({});
   const loadDiskSizes = async () => {
     if (!api || launcherInstances.length === 0) return;
@@ -545,7 +538,7 @@ export default function PoshatLauncherPage() {
     setDiskSizes(next);
   };
   useEffect(() => {
-    if (activeSection === "instances" && launcherInstances.length > 0) {
+    if (activeSection === "instances" && launcherInstances.length > 0 && Object.keys(diskSizes).length === 0) {
       loadDiskSizes();
     }
   }, [activeSection, launcherInstances, api]);
@@ -604,9 +597,9 @@ export default function PoshatLauncherPage() {
                 <InstancesSection
                   items={launcherInstances}
                   activeInstanceId={activeInstanceId}
-                  runningInstanceId={runningInstanceId}
-                  launchState={launchState}
-                  installProgress={installProgress}
+                  runningInstanceId={activeSection === "instances" ? runningInstanceId : null}
+                  launchState={activeSection === "instances" ? launchState : "idle"}
+                  installProgress={activeSection === "instances" ? installProgress : null}
                   filterTypes={versionFilters}
                   sortMode={instancesSort}
                   isActive={activeSection === "instances"}
@@ -622,7 +615,7 @@ export default function PoshatLauncherPage() {
                   onCreateShortcut={handleCreateShortcut}
                   onSetIcon={handleSetIcon}
                   onSetCover={handleSetCover}
-                  onSetVideoCover={handleSetVideoCover}
+                  onImportInstance={reloadInstances}
                   pinnedIds={pinnedIds}
                   onTogglePin={handleTogglePin}
                   diskSizes={diskSizes}

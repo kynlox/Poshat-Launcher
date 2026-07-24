@@ -275,7 +275,8 @@ export function CreateInstanceModal({ open, onClose, onCreate, filterTypes, inst
         <div className="-mx-4 -mb-4 mt-4 flex shrink-0 justify-end gap-2 border-t border-white/10 bg-[var(--bg-card)] px-4 py-3 sm:-mx-5 sm:-mb-5 sm:px-5">
           <button
             onClick={onClose}
-            className="rounded-xl bg-white/5 px-4 py-2 text-sm text-zinc-300 transition hover:bg-white/10"
+            disabled={submitting}
+            className="rounded-xl bg-white/5 px-4 py-2 text-sm text-zinc-300 transition hover:bg-white/10 disabled:opacity-50"
           >
             Отмена
           </button>
@@ -292,6 +293,22 @@ export function CreateInstanceModal({ open, onClose, onCreate, filterTypes, inst
           </button>
         </div>
       </div>
+
+      {submitting && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-5 rounded-3xl border border-white/10 bg-[#10141f] px-10 py-8 shadow-2xl">
+            <div className="relative h-16 w-16">
+              <div className="absolute inset-0 rounded-full border-4 border-white/10" />
+              <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-violet-400" />
+              <div className="absolute inset-2 animate-spin rounded-full border-4 border-transparent border-t-violet-300" style={{ animationDirection: "reverse", animationDuration: "1.5s" }} />
+            </div>
+            <div className="text-center">
+              <p className="text-base font-semibold text-white">Создание сборки</p>
+              <p className="mt-1 text-sm text-zinc-400">Подожди, это быстро…</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

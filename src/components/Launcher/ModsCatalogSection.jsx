@@ -26,7 +26,6 @@ const TABS = [
   { id: "datapack", label: "Датапаки", icon: Layers, folder: "datapacks" },
 ];
 
-// Источник один — Modrinth. CurseForge выпилен (требовал бы личный API-ключ).
 const CATALOG_SOURCE = "modrinth";
 
 function formatDownloads(n) {

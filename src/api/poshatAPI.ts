@@ -15,7 +15,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 
 // -------- типы --------
 export interface VersionFilters {
@@ -318,8 +318,14 @@ export const poshatAPI = {
       invoke<unknown>("instances_rename", { id, name }),
     delete: (id: string): Promise<boolean> => invoke<boolean>("instances_delete", { id }),
     duplicate: (id: string): Promise<unknown> => invoke<unknown>("instances_duplicate", { id }),
-    exportPack: (id: string): Promise<unknown> =>
-      invoke<unknown>("instances_export_pack", { id }),
+    exportPack: async (id: string, name?: string): Promise<unknown> => {
+      const path = await save({
+        defaultPath: `${name || "instance"}.mrpack`,
+        filters: [{ name: "Modrinth pack", extensions: ["mrpack"] }],
+      });
+      if (!path) return null;
+      return invoke<unknown>("instances_export_pack", { id, outPath: path });
+    },
     importPack: async (): Promise<unknown | null> => {
       const path = await open({
         multiple: false,
@@ -345,12 +351,6 @@ export const poshatAPI = {
       invoke<string>("instances_set_cover", { id, cover }),
     getCover: (id: string): Promise<string | null> =>
       invoke<string | null>("instances_get_cover", { id }),
-    setVideoCover: (id: string, fileName: string, cover: string): Promise<string> =>
-      invoke<string>("instances_set_video_cover", { id, fileName, cover }),
-    getVideoCover: (id: string): Promise<string | null> =>
-      invoke<string | null>("instances_get_video_cover", { id }),
-    isVideoFile: (name: string): Promise<boolean> =>
-      invoke<boolean>("instances_is_video_file", { name }),
     diskSize: (id: string): Promise<number> =>
       invoke<number>("instances_disk_size", { id }),
     togglePin: (id: string): Promise<string[]> =>

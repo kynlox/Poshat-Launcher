@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { convertFileSrc } from "@tauri-apps/api/core";
+import { memo, useEffect, useMemo, useState } from "react";
 import {
   Play,
   FolderOpen,
+  FolderInput,
   Trash2,
   Plus,
   Loader2,
@@ -13,13 +13,7 @@ import {
   Check,
   Link2,
   Image,
-  Video,
-  Pin,
-  Pause,
-  Volume2,
-  VolumeX,
-  Maximize2,
-  X,
+  Download,
 } from "lucide-react";
 import { SectionTitle } from "@/components/Launcher/SectionTitle";
 import LoaderIcons from "@/components/Launcher/LoaderIcons";
@@ -28,11 +22,9 @@ import { EditInstanceModal } from "@/components/Launcher/EditInstanceModal";
 import InstanceIconPicker, { svgToPngBase64 } from "@/components/Launcher/InstanceIconPicker";
 import { useInstalledVersions } from "@/hooks/useInstalledVersions";
 import { useConfirm, useToast } from "@/components/ui/UIProvider";
+import { poshatAPI } from "@/api/poshatAPI";
 
 const PHOTO_ACCEPT = "image/png,image/jpeg,image/webp,image/gif,image/bmp,image/tiff";
-const VIDEO_ACCEPT = "video/mp4,video/webm,video/x-matroska,video/quicktime,video/x-msvideo,video/ogg,video/ogv";
-const MAX_VIDEO_SECONDS = 3 * 60 * 60;
-const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 
 const LOADER_LABEL = {
   vanilla: "Vanilla",
@@ -42,8 +34,6 @@ const LOADER_LABEL = {
   neoforge: "NeoForge",
 };
 
-// Цветовой акцент по загрузчику — позволяет глазами быстро отличать карточки
-// в большой библиотеке. Совпадает с палитрой бейджей.
 const LOADER_ACCENT = {
   vanilla: {
     bar: "bg-emerald-400/80",
@@ -71,53 +61,6 @@ const LOADER_ACCENT = {
     icon: "from-amber-400/30 to-orange-400/20",
   },
 };
-
-function VideoCover({ videoPath, itemId, revision = 0, className, muted = true, autoPlay = true, loop = true, controls = false, playsInline = true, preload = "metadata", onClick, onLoadedMetadata, onPause, onPlay, onTimeUpdate, videoRef }) {
-  const sourceUrl = useMemo(() => {
-    if (!videoPath) return null;
-    const assetUrl = convertFileSrc(videoPath);
-    return `${assetUrl}${assetUrl.includes("?") ? "&" : "?"}revision=${revision}`;
-  }, [videoPath, revision]);
-  if (!sourceUrl) return null;
-  return (
-    <video
-      ref={videoRef}
-      src={sourceUrl}
-      className={className}
-      muted={muted}
-      autoPlay={autoPlay}
-      loop={loop}
-      controls={controls}
-      playsInline={playsInline}
-      preload={preload}
-      onClick={onClick}
-      onLoadedMetadata={onLoadedMetadata}
-      onPause={onPause}
-      onPlay={onPlay}
-      onTimeUpdate={onTimeUpdate}
-    />
-  );
-}
-
-function FullscreenVideoCover({ startTime = 0, shouldPlay = false, ...props }) {
-  const startTimeAppliedRef = useRef(false);
-
-  const handleLoadedMetadata = useCallback((event) => {
-    if (startTimeAppliedRef.current) return;
-    startTimeAppliedRef.current = true;
-
-    const video = event.currentTarget;
-    if (startTime > 0) {
-      const safeStartTime = Number.isFinite(video.duration)
-        ? Math.min(startTime, video.duration)
-        : startTime;
-      video.currentTime = safeStartTime;
-    }
-    if (shouldPlay) video.play().catch(() => {});
-  }, [startTime, shouldPlay]);
-
-  return <VideoCover {...props} autoPlay={false} preload="auto" onLoadedMetadata={handleLoadedMetadata} />;
-}
 
 const SORT_LABEL = {
   recent: "Сначала недавние",
@@ -175,7 +118,6 @@ function sortItems(items, mode) {
     });
     return copy;
   }
-  // recent — по lastPlayed, потом createdAt, потом name
   copy.sort((a, b) => {
     const aP = a.lastPlayed ? Date.parse(a.lastPlayed) : 0;
     const bP = b.lastPlayed ? Date.parse(b.lastPlayed) : 0;
@@ -188,7 +130,7 @@ function sortItems(items, mode) {
   return copy;
 }
 
-export function InstancesSection({
+export const InstancesSection = memo(function InstancesSection({
   items,
   activeInstanceId,
   runningInstanceId,
@@ -208,7 +150,7 @@ export function InstancesSection({
   onCreateShortcut,
   onSetIcon,
   onSetCover,
-  onSetVideoCover,
+  onImportInstance,
   isActive = true,
   pinnedIds = [],
   onTogglePin,
@@ -225,7 +167,25 @@ export function InstancesSection({
   const [shortcutBusy, setShortcutBusy] = useState(false);
   const [query, setQuery] = useState("");
   const [coverTarget, setCoverTarget] = useState(null);
-  const [coverTab, setCoverTab] = useState("photo");
+  const [exportBusy, setExportBusy] = useState(null);
+  const [importBusy, setImportBusy] = useState(false);
+  const [opProgress, setOpProgress] = useState(null);
+
+  useEffect(() => {
+    if (!opProgress) return;
+    if (opProgress.phase === "done") {
+      const t = setTimeout(() => setOpProgress(null), 1200);
+      return () => clearTimeout(t);
+    }
+  }, [opProgress]);
+
+  useEffect(() => {
+    const api = window.poshatAPI;
+    if (!api) return;
+    const off1 = api.on("export:progress", (p) => setOpProgress({ ...p, op: "export" }));
+    const off2 = api.on("import:progress", (p) => setOpProgress({ ...p, op: "import" }));
+    return () => { off1(); off2(); };
+  }, []);
 
   useEffect(() => {
     if (editTarget || shortcutTarget || coverTarget) {
@@ -238,117 +198,8 @@ export function InstancesSection({
       };
     }
   }, [editTarget, shortcutTarget, coverTarget]);
-  const [videoRevisionMap, setVideoRevisionMap] = useState({});
-  const [videoPausedMap, setVideoPausedMap] = useState({});
-  const [videoMutedMap, setVideoMutedMap] = useState({});
-  const [fullscreenPlayback, setFullscreenPlayback] = useState(null);
-  const videoCardRefsMap = useRef({});
-  const fullscreenVideoRef = useRef(null);
+
   const { installed } = useInstalledVersions(10000);
-
-  const setVideoPaused = (itemId, paused) => {
-    setVideoPausedMap((current) => (
-      current[itemId] === paused ? current : { ...current, [itemId]: paused }
-    ));
-  };
-
-  const toggleVideoPlayback = (itemId) => {
-    const video = videoCardRefsMap.current[itemId];
-    if (!video) return;
-    if (video.paused) video.play().catch(() => setVideoPaused(itemId, true));
-    else video.pause();
-  };
-
-  const toggleVideoMuted = (itemId) => {
-    const video = videoCardRefsMap.current[itemId];
-    if (!video) return;
-    const nextMuted = !video.muted;
-
-    if (!nextMuted) {
-      Object.entries(videoCardRefsMap.current).forEach(([otherId, otherVideo]) => {
-        if (!otherVideo || otherId === String(itemId)) return;
-        otherVideo.muted = true;
-      });
-      setVideoMutedMap((current) => {
-        const next = Object.fromEntries(Object.keys(videoCardRefsMap.current).map((id) => [id, true]));
-        next[itemId] = false;
-        return { ...current, ...next };
-      });
-    } else {
-      setVideoMutedMap((current) => ({ ...current, [itemId]: true }));
-    }
-    video.muted = nextMuted;
-  };
-
-  const openFullscreen = (item) => {
-    const cardVideo = videoCardRefsMap.current[item.id];
-    const shouldPlay = !!cardVideo && !cardVideo.paused;
-    const startTime = cardVideo?.currentTime || 0;
-    cardVideo?.pause();
-    setFullscreenPlayback({ item, startTime, shouldPlay, cardMuted: cardVideo?.muted ?? true });
-  };
-
-  const closeFullscreen = (resumeCard = true) => {
-    if (!fullscreenPlayback) return;
-    const { item, cardMuted } = fullscreenPlayback;
-    const fullscreenVideo = fullscreenVideoRef.current;
-    const cardVideo = videoCardRefsMap.current[item.id];
-    const shouldResume = resumeCard && !!fullscreenVideo && !fullscreenVideo.paused;
-
-    if (cardVideo && fullscreenVideo) {
-      cardVideo.currentTime = fullscreenVideo.currentTime;
-      cardVideo.muted = cardMuted;
-    }
-    fullscreenVideo?.pause();
-    setFullscreenPlayback(null);
-
-    if (cardVideo && shouldResume) {
-      cardVideo.play().catch(() => setVideoPaused(item.id, true));
-    } else if (cardVideo) {
-      cardVideo.pause();
-      setVideoPaused(item.id, true);
-    }
-  };
-
-  useEffect(() => {
-    if (isActive) return;
-
-    const pausedIds = {};
-    const mutedIds = {};
-    Object.entries(videoCardRefsMap.current).forEach(([itemId, video]) => {
-      if (!video) return;
-      video.pause();
-      video.muted = true;
-      pausedIds[itemId] = true;
-      mutedIds[itemId] = true;
-    });
-    setVideoPausedMap((current) => ({ ...current, ...pausedIds }));
-    setVideoMutedMap((current) => ({ ...current, ...mutedIds }));
-
-    if (fullscreenPlayback) closeFullscreen(false);
-  }, [isActive]);
-
-  // Синхронизируем editTarget / shortcutTarget с актуальными данными
-  useEffect(() => {
-    if (editTarget) {
-      const fresh = items.find((i) => i.id === editTarget.id);
-      if (fresh && fresh !== editTarget) setEditTarget(fresh);
-    }
-    if (shortcutTarget) {
-      const fresh = items.find((i) => i.id === shortcutTarget.id);
-      if (fresh && fresh !== shortcutTarget) {
-        setShortcutTarget(fresh);
-        setShortcutIcon(fresh.iconData || null);
-      }
-    }
-  }, [items]);
-
-  const openShortcutDialog = (item) => {
-    setShortcutTarget(item);
-    setShortcutName(item.name || "");
-    setShortcutIcon(item.iconData || null);
-    setShortcutActiveIconId(null);
-  };
 
   const convertToCoverPng = (file) => {
     return new Promise((resolve) => {
@@ -407,70 +258,6 @@ export function InstancesSection({
     }
   };
 
-  const checkVideoDuration = (file) => {
-    return new Promise((resolve, reject) => {
-      const url = URL.createObjectURL(file);
-      const vid = document.createElement("video");
-      vid.preload = "metadata";
-      vid.onloadedmetadata = () => {
-        URL.revokeObjectURL(url);
-        if (vid.duration > MAX_VIDEO_SECONDS) {
-          reject(new Error(`Видео слишком длинное (макс. 3 часа, а у ${Math.round(vid.duration / 60)} мин.)`));
-        } else {
-          resolve(vid.duration);
-        }
-      };
-      vid.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error("Не удалось прочитать видеофайл"));
-      };
-      vid.src = url;
-    });
-  };
-
-  const handleVideoCoverUpload = async (item, file) => {
-    if (!onSetVideoCover || !file) return;
-    try {
-      if (file.size > MAX_VIDEO_BYTES) {
-        throw new Error("Видео слишком большое (макс. 50 МБ)");
-      }
-      await checkVideoDuration(file);
-      const b64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(",")[1]);
-        reader.onerror = () => reject(new Error("Не удалось прочитать файл"));
-        reader.readAsDataURL(file);
-      });
-      await onSetVideoCover(item.id, file.name, b64);
-      setVideoRevisionMap((current) => ({
-        ...current,
-        [item.id]: (current[item.id] || 0) + 1,
-      }));
-      toast.ok("Видео-обложка установлена");
-    } catch (e) {
-      toast.err(`Ошибка: ${e && e.message ? e.message : e}`);
-    }
-  };
-
-  const handleVideoCoverClear = async (item) => {
-    if (!onSetVideoCover) return;
-    try {
-      await onSetVideoCover(item.id, "", "");
-      setVideoRevisionMap((current) => ({
-        ...current,
-        [item.id]: (current[item.id] || 0) + 1,
-      }));
-      toast.ok("Видео-обложка удалена");
-    } catch (e) {
-      toast.err(`Не удалось удалить: ${e && e.message ? e.message : e}`);
-    }
-  };
-
-  const isVideoFile = (name) => {
-    const ext = name.split(".").pop().toLowerCase();
-    return ["mp4", "webm", "mkv", "avi", "mov", "ogv", "ogg"].includes(ext);
-  };
-
   const isImageFile = (name) => {
     const ext = name.split(".").pop().toLowerCase();
     return ["png", "jpg", "jpeg", "webp", "gif", "bmp", "tiff", "svg"].includes(ext);
@@ -480,21 +267,36 @@ export function InstancesSection({
     e.preventDefault();
     const file = e.dataTransfer?.files?.[0];
     if (!file) return;
-    if (isVideoFile(file.name)) {
-      setCoverTab("video");
-      handleVideoCoverUpload(item, file);
-    } else if (isImageFile(file.name)) {
-      setCoverTab("photo");
+    if (isImageFile(file.name)) {
       handleCoverUpload(item, file);
     } else {
-      toast.err("Неподдерживаемый формат файла");
+      toast.err("Неподдерживаемый формат файла. Только изображения.");
     }
   };
+
+  const openShortcutDialog = (item) => {
+    setShortcutTarget(item);
+    setShortcutName(item.name || "");
+    setShortcutIcon(item.iconData || null);
+    setShortcutActiveIconId(null);
+  };
+
+  const handleExport = async (item) => {
+    setExportBusy(item.id);
+    try {
+      const result = await poshatAPI.instances.exportPack(item.id, item.name);
+      if (result) toast.ok(`Экспортировано: ${result.path}`);
+    } catch (e) {
+      toast.err(`Не удалось экспортировать: ${e && e.message ? e.message : e}`);
+    } finally {
+      setExportBusy(null);
+    }
+  };
+
   const submitShortcut = async () => {
     if (!shortcutTarget || !onCreateShortcut) return;
     setShortcutBusy(true);
     try {
-      // Иконка ярлыка — отдельная от иконки инстанса.
       const iconB64 = shortcutIcon
         ? (shortcutIcon.includes(",") ? shortcutIcon.split(",")[1] : shortcutIcon)
         : "";
@@ -522,6 +324,22 @@ export function InstancesSection({
     if (ok) onDeleteInstance(item.id);
   };
 
+  const handleImport = async () => {
+    try {
+      setImportBusy(true);
+      const result = await poshatAPI.instances.importPack();
+      if (result) {
+        toast.ok(`Импортировано: ${result.name || result.id}`);
+        onImportInstance?.();
+      }
+    } catch (e) {
+      if (e && e.message && e.message.includes("cancelled")) return;
+      toast.err(`Не удалось импортировать: ${e && e.message ? e.message : e}`);
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
   const launchBusy =
     launchState === "installing" ||
     launchState === "launching" ||
@@ -546,18 +364,28 @@ export function InstancesSection({
 
   return (
     <section className="flex min-h-full flex-col space-y-4">
-      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3">
         <SectionTitle
           eyebrow="Библиотека"
           title="Сборки"
           description="Отдельные игровые профили со своими версиями, загрузчиками, модами и памятью. Каждый запускается из своей папки."
         />
-        <button
-          onClick={() => setCreateOpen(true)}
-          className="shrink-0 inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2.5 text-sm font-semibold text-[#090b12] shadow-[0_18px_45px_rgba(255,255,255,0.12)] transition hover:scale-[1.02]"
-        >
-          <Plus size={16} /> Создать
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            onClick={handleImport}
+            disabled={importBusy}
+            className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.06] px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:bg-white/[0.1] disabled:opacity-50"
+          >
+            {importBusy ? <Loader2 size={16} className="animate-spin" /> : <FolderInput size={16} />}
+            Импорт
+          </button>
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2.5 text-sm font-semibold text-[#090b12] shadow-[0_18px_45px_rgba(255,255,255,0.12)] transition hover:scale-[1.02]"
+          >
+            <Plus size={16} /> Создать
+          </button>
+        </div>
       </div>
 
       {items.length > 0 && (
@@ -619,8 +447,6 @@ export function InstancesSection({
             const loaderLabel = LOADER_LABEL[loaderId] || item.loader || "Vanilla";
             const accent = LOADER_ACCENT[loaderId] || LOADER_ACCENT.vanilla;
             const isInstalled = installed.has(item.mcVersion);
-            const isVideoPaused = videoPausedMap[item.id] ?? true;
-            const isVideoMuted = videoMutedMap[item.id] ?? false;
 
             return (
               <div
@@ -634,70 +460,14 @@ export function InstancesSection({
                     : "border-white/10 bg-theme-card/80 hover:border-white/20"
                 }`}
               >
-                {item.videoCoverPath ? (
-                  <div className="absolute inset-0 pointer-events-none">
-                    <VideoCover
-                      videoPath={item.videoCoverPath}
-                      itemId={item.id}
-                      revision={videoRevisionMap[item.id] || 0}
-                      className="h-full w-full object-cover opacity-25"
-                      muted={isVideoMuted}
-                      autoPlay={false}
-                      preload="metadata"
-                      onLoadedMetadata={(event) => {
-                        const video = event.currentTarget;
-                        if (video.currentTime === 0) video.currentTime = 0.04;
-                      }}
-                      videoRef={(el) => { videoCardRefsMap.current[item.id] = el; }}
-                      onPause={() => setVideoPaused(item.id, true)}
-                      onPlay={() => setVideoPaused(item.id, false)}
-                    />
-                  </div>
-                ) : item.coverData ? (
+                {item.coverData ? (
                   <img
                     src={`data:image/png;base64,${item.coverData}`}
                     alt=""
                     className="absolute inset-0 h-full w-full object-cover opacity-15 pointer-events-none"
                   />
                 ) : null}
-                {item.videoCoverPath && (
-                  <div className="absolute right-2 top-2 z-10 flex gap-1 opacity-0 transition group-hover:opacity-100">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleVideoPlayback(item.id);
-                      }}
-                      className="theme-force-dark pointer-events-auto flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition hover:bg-black/70"
-                      title={isVideoPaused ? "Продолжить обложку" : "Остановить обложку"}
-                      aria-label={isVideoPaused ? "Продолжить видеообложку" : "Остановить видеообложку"}
-                    >
-                      {isVideoPaused ? <Play size={13} className="fill-current" /> : <Pause size={13} className="fill-current" />}
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleVideoMuted(item.id);
-                      }}
-                      className="theme-force-dark pointer-events-auto flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition hover:bg-black/70"
-                      title={isVideoMuted ? "Включить звук обложки" : "Выключить звук обложки"}
-                      aria-label={isVideoMuted ? "Включить звук видеообложки" : "Выключить звук видеообложки"}
-                    >
-                      {isVideoMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openFullscreen(item);
-                      }}
-                      className="theme-force-dark pointer-events-auto flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition hover:bg-black/70"
-                      title="Полноэкранный режим"
-                      aria-label="Открыть видеообложку в полноэкранном режиме"
-                    >
-                      <Maximize2 size={13} />
-                    </button>
-                  </div>
-                )}
-                {/* Цветная полоска слева — мгновенно отличает загрузчик. */}
+
                 <span
                   className={`absolute left-0 top-0 h-full w-1 ${accent.bar}`}
                   aria-hidden
@@ -843,15 +613,29 @@ export function InstancesSection({
                     onClick={(e) => {
                       e.stopPropagation();
                       setCoverTarget(coverTarget?.id === item.id ? null : item);
-                      setCoverTab("photo");
                     }}
                     className={`rounded-2xl px-3.5 py-2.5 transition ${
-                      item.coverData || item.videoCoverPath
+                      item.coverData
                         ? "bg-violet-500/15 text-violet-300 hover:bg-violet-500/25"
                         : "bg-white/8 text-zinc-300 hover:bg-white/12"
                     }`}
                   >
-                    {item.videoCoverPath ? <Video size={16} /> : <Image size={16} />}
+                    <Image size={16} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleExport(item);
+                    }}
+                    disabled={exportBusy === item.id}
+                    className="rounded-2xl bg-white/8 px-3.5 py-2.5 text-zinc-300 transition hover:bg-white/12 disabled:opacity-50"
+                    title="Экспортировать сборку"
+                  >
+                    {exportBusy === item.id ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Download size={16} />
+                    )}
                   </button>
                   <button
                     onClick={(e) => {
@@ -956,32 +740,7 @@ export function InstancesSection({
             <p className="text-[11px] uppercase tracking-wider text-zinc-500">Обложка</p>
             <h2 className="mb-4 text-lg font-semibold">Обложка сборки</h2>
 
-            {/* Tabs */}
-            <div className="mb-4 flex gap-1 rounded-xl bg-white/5 p-1">
-              <button
-                onClick={() => setCoverTab("photo")}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition ${
-                  coverTab === "photo"
-                    ? "bg-violet-500/20 text-violet-200"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                <Image size={14} /> Фото
-              </button>
-              <button
-                onClick={() => setCoverTab("video")}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition ${
-                  coverTab === "video"
-                    ? "bg-violet-500/20 text-violet-200"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                <Video size={14} /> Видео
-              </button>
-            </div>
-
-            {/* Preview */}
-            {coverTab === "photo" && coverTarget.coverData ? (
+            {coverTarget.coverData ? (
               <div className="mb-3 overflow-hidden rounded-2xl border border-white/10">
                 <img
                   src={`data:image/png;base64,${coverTarget.coverData}`}
@@ -989,57 +748,30 @@ export function InstancesSection({
                   className="h-32 w-full object-cover"
                 />
               </div>
-            ) : coverTab === "video" && coverTarget.videoCoverPath ? (
-              <div className="mb-3 overflow-hidden rounded-2xl border border-white/10">
-                <VideoCover
-                  videoPath={coverTarget.videoCoverPath}
-                  itemId={coverTarget.id}
-                  revision={videoRevisionMap[coverTarget.id] || 0}
-                  className="h-32 w-full object-cover"
-                />
-              </div>
             ) : (
               <div className="mb-3 flex h-32 items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/[0.025] text-xs text-zinc-500">
-                {coverTab === "photo" ? "Фото не установлено" : "Видео не установлено"}
+                Фото не установлено
               </div>
             )}
 
-            {/* Upload buttons */}
             <div className="flex gap-2">
-              {coverTab === "photo" ? (
-                <label className="flex-1 cursor-pointer rounded-xl bg-white/10 px-4 py-2.5 text-center text-sm text-white transition hover:bg-white/15">
-                  Загрузить фото
-                  <input
-                    type="file"
-                    accept={PHOTO_ACCEPT}
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleCoverUpload(coverTarget, file);
-                      setCoverTarget(null);
-                    }}
-                  />
-                </label>
-              ) : (
-                <label className="flex-1 cursor-pointer rounded-xl bg-white/10 px-4 py-2.5 text-center text-sm text-white transition hover:bg-white/15">
-                  Загрузить видео
-                  <input
-                    type="file"
-                    accept={VIDEO_ACCEPT}
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleVideoCoverUpload(coverTarget, file);
-                      setCoverTarget(null);
-                    }}
-                  />
-                </label>
-              )}
-              {((coverTab === "photo" && coverTarget.coverData) || (coverTab === "video" && coverTarget.videoCoverPath)) && (
+              <label className="flex-1 cursor-pointer rounded-xl bg-white/10 px-4 py-2.5 text-center text-sm text-white transition hover:bg-white/15">
+                Загрузить фото
+                <input
+                  type="file"
+                  accept={PHOTO_ACCEPT}
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleCoverUpload(coverTarget, file);
+                    setCoverTarget(null);
+                  }}
+                />
+              </label>
+              {coverTarget.coverData && (
                 <button
                   onClick={() => {
-                    if (coverTab === "photo") handleCoverClear(coverTarget);
-                    else handleVideoCoverClear(coverTarget);
+                    handleCoverClear(coverTarget);
                     setCoverTarget(null);
                   }}
                   className="rounded-xl bg-rose-500/15 px-4 py-2.5 text-sm text-rose-300 transition hover:bg-rose-500/25"
@@ -1050,43 +782,42 @@ export function InstancesSection({
             </div>
 
             <p className="mt-3 text-[10px] text-zinc-500">
-              {coverTab === "photo"
-                ? "Поддерживаются: PNG, JPEG, WebP, GIF, BMP"
-                : "Поддерживаются: MP4, WebM, MKV, AVI, MOV · Макс. 3 часа · Файл хранится только на вашем ПК"}
+              Поддерживаются: PNG, JPEG, WebP, GIF, BMP
             </p>
           </div>
         </div>
       )}
 
-      {fullscreenPlayback && (
-        <div
-          className="theme-force-dark fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-5"
-          onClick={() => closeFullscreen(true)}
-        >
-          <button
-            onClick={() => closeFullscreen(true)}
-            className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
-            title="Закрыть полноэкранный режим"
-            aria-label="Закрыть полноэкранный режим"
-          >
-            <X size={20} />
-          </button>
-          <FullscreenVideoCover
-            key={`${fullscreenPlayback.item.id}:${videoRevisionMap[fullscreenPlayback.item.id] || 0}`}
-            videoPath={fullscreenPlayback.item.videoCoverPath}
-            itemId={fullscreenPlayback.item.id}
-            revision={videoRevisionMap[fullscreenPlayback.item.id] || 0}
-            className="h-[calc(100vh-40px)] w-[calc(100vw-40px)] rounded-xl object-contain"
-            controls={true}
-            muted={false}
-            loop={true}
-            startTime={fullscreenPlayback.startTime}
-            shouldPlay={fullscreenPlayback.shouldPlay}
-            videoRef={(element) => { fullscreenVideoRef.current = element; }}
-            onClick={(e) => e.stopPropagation()}
-          />
+      {opProgress && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="flex w-full max-w-sm flex-col items-center gap-5 rounded-3xl border border-white/10 bg-[#10141f] px-8 py-7 shadow-2xl">
+            <div className="relative h-16 w-16">
+              <div className="absolute inset-0 rounded-full border-4 border-white/10" />
+              <div
+                className="absolute inset-0 rounded-full border-4 border-transparent border-t-violet-400 transition-all duration-300"
+                style={{
+                  clipPath: `polygon(0 0, 100% 0, 100% ${opProgress.percent || 0}%, 0 ${opProgress.percent || 0}%)`,
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white">
+                {opProgress.percent || 0}%
+              </div>
+            </div>
+            <div className="w-full text-center">
+              <p className="text-sm font-semibold text-white">
+                {opProgress.op === "export" ? "Экспорт сборки" : "Импорт сборки"}
+              </p>
+              <p className="mt-1 text-xs text-zinc-400">{opProgress.label || "…"}</p>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-400 transition-all duration-300"
+                style={{ width: `${opProgress.percent || 0}%` }}
+              />
+            </div>
+          </div>
         </div>
       )}
     </section>
   );
-}
+});
