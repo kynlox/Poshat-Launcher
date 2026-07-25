@@ -202,10 +202,12 @@ export const InstancesSection = memo(function InstancesSection({
   const { installed } = useInstalledVersions(10000);
 
   const convertToCoverPng = (file) => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Не удалось прочитать файл"));
       reader.onload = () => {
         const img = new window.Image();
+        img.onerror = () => reject(new Error("Не удалось загрузить изображение"));
         img.onload = () => {
           const canvas = document.createElement("canvas");
           const targetW = 512;
@@ -302,7 +304,7 @@ export const InstancesSection = memo(function InstancesSection({
         : "";
       const result = await onCreateShortcut(shortcutTarget.id, shortcutName.trim(), iconB64 || undefined);
       setShortcutTarget(null);
-      toast.ok(`Ярлык создан:\n${result.path}`);
+      toast.ok(`Ярлык создан:\n${result?.path || shortcutName.trim()}`);
     } catch (e) {
       toast.err(`Не удалось создать ярлык: ${e && e.message ? e.message : e}`);
     } finally {

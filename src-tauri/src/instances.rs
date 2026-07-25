@@ -211,6 +211,13 @@ fn unique_id(existing: &std::collections::HashSet<String>, base: &str) -> String
             return candidate;
         }
         i += 1;
+        if i > 10_000 {
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            return format!("{}-{}", base, ts);
+        }
     }
 }
 
@@ -600,19 +607,24 @@ pub fn export_instance_pack(
     serde_json::to_writer_pretty(&mut zip, &meta).map_err(|e| e.to_string())?;
 
     let mc_dir = game_dir_of(id);
+    let mut progress = ZipProgress { app, processed: 0, total: 0, skipped_large: 0 };
     if mc_dir.exists() {
-        let total = count_dir_files(&mc_dir);
-        let mut progress = ZipProgress { app, processed: 0, total };
+        progress.total = count_dir_files(&mc_dir);
         add_dir_to_zip(&mut zip, &mc_dir, &mc_dir, "overrides", opts, &mut progress)?;
     }
     zip.finish().map_err(|e| format!("Не удалось закрыть архив: {}", e))?;
 
     if let Some(a) = app {
-        let _ = a.emit("export:progress", serde_json::json!({
+        let skipped = progress.skipped_large;
+        let mut payload = serde_json::json!({
             "phase": "done",
             "percent": 100,
             "label": "Готово!",
-        }));
+        });
+        if skipped > 0 {
+            payload["warning"] = serde_json::json!(format!("Пропущено файлов >100 МБ: {}", skipped));
+        }
+        let _ = a.emit("export:progress", payload);
     }
     Ok(PackResult { path: out_path.to_string_lossy().into_owned(), file_name })
 }
@@ -754,6 +766,7 @@ struct ZipProgress<'a> {
     app: Option<&'a tauri::AppHandle>,
     processed: u64,
     total: u64,
+    skipped_large: u64,
 }
 
 fn add_dir_to_zip(
@@ -783,6 +796,8 @@ fn add_dir_to_zip(
         } else {
             let meta = entry.metadata().map_err(|e| e.to_string())?;
             if meta.len() > 100 * 1024 * 1024 {
+                progress.skipped_large += 1;
+                tracing::warn!("пропущен файл >100 МБ: {}", rel_name);
                 continue;
             }
             zip.start_file(zip_name, opts).map_err(|e| e.to_string())?;

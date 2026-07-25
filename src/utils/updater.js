@@ -21,22 +21,23 @@ let checkedOnce = false;
 
 /**
  * Запускает фоновую проверку обновлений.
- * Вызывать один раз при старте приложения (после монтирования UIProvider).
+ * Возвращает функцию отмены — вызвать для очистки таймера при unmount.
  *
- * @param {ReturnType<typeof import("../components/ui/UIProvider").useToast>} toast
- * @param {ReturnType<typeof import("../components/ui/UIProvider").useConfirm>} confirm
+ * @param {object} toast
+ * @param {function} confirm
+ * @returns {function} cleanup — вызвать при unmount
  */
-export async function checkForUpdatesOnStartup(toast, confirm) {
-  if (checkedOnce) return;
+export function checkForUpdatesOnStartup(toast, confirm) {
+  if (checkedOnce) return () => {};
   checkedOnce = true;
 
-  // Даём лаунчеру 3 сек на полноценный рендер UI до проверки.
-  setTimeout(async () => {
+  let cancelled = false;
+  const timerId = setTimeout(async () => {
+    if (cancelled) return;
     try {
-      // Проверяем, доступен ли плагин updater (может отсутствовать в dev-сборках).
       if (typeof check !== "function") return;
       const update = await check();
-      if (!update?.available) return;
+      if (cancelled || !update?.available) return;
 
       const version = update.version || "новая версия";
       const ok = await confirm({
@@ -47,15 +48,20 @@ export async function checkForUpdatesOnStartup(toast, confirm) {
         cancelLabel: "Позже",
       });
 
-      if (!ok) return;
+      if (cancelled || !ok) return;
 
       await downloadAndInstall(update, toast);
     } catch (e) {
-      // dev-сборки без подписанного эндпоинта — тихо игнорируем.
-      // eslint-disable-next-line no-console
-      console.info("[updater] проверка недоступна:", e?.message || e);
+      if (!cancelled) {
+        console.info("[updater] проверка недоступна:", e?.message || e);
+      }
     }
   }, 3000);
+
+  return () => {
+    cancelled = true;
+    clearTimeout(timerId);
+  };
 }
 
 /**
@@ -79,7 +85,6 @@ async function downloadAndInstall(update, toast) {
           downloaded += event.data.chunkLength;
           if (contentLength > 0) {
             const pct = Math.round((downloaded / contentLength) * 100);
-            // Обновляем тост только при целом проценте — не спамим.
             if (pct !== lastPct && pct % 5 === 0) {
               lastPct = pct;
               toast.dismiss(busyId);
@@ -94,12 +99,10 @@ async function downloadAndInstall(update, toast) {
       }
     });
 
-    // После установки — перезапуск приложения.
     toast.ok("Обновление установлено. Перезапуск…");
     await relaunch();
   } catch (e) {
     const msg = e?.message || String(e);
-    // eslint-disable-next-line no-console
     console.error("[updater] ошибка установки:", msg);
     toast.err(`Не удалось обновить: ${msg}`);
   }

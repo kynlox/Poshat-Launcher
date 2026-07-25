@@ -128,8 +128,14 @@ export default function PoshatLauncherPage() {
 
   useEffect(() => {
     if (!bootReady || !startupChecked || shortcutLaunchId) return;
-    const timer = window.setTimeout(() => checkForUpdatesOnStartup(toast, confirm), 1600);
-    return () => window.clearTimeout(timer);
+    let innerCleanup = null;
+    const timer = window.setTimeout(() => {
+      innerCleanup = checkForUpdatesOnStartup(toast, confirm);
+    }, 1600);
+    return () => {
+      window.clearTimeout(timer);
+      if (innerCleanup) innerCleanup();
+    };
   }, [bootReady, startupChecked, shortcutLaunchId, toast, confirm]);
 
   const reloadAccounts = () => {
@@ -538,8 +544,13 @@ export default function PoshatLauncherPage() {
     setDiskSizes(next);
   };
   useEffect(() => {
-    if (activeSection === "instances" && launcherInstances.length > 0 && Object.keys(diskSizes).length === 0) {
-      loadDiskSizes();
+    if (activeSection === "instances" && launcherInstances.length > 0) {
+      const instanceIds = new Set(launcherInstances.map((i) => i.id));
+      const staleKeys = Object.keys(diskSizes).filter((k) => !instanceIds.has(k));
+      const missingIds = launcherInstances.filter((i) => !(i.id in diskSizes));
+      if (Object.keys(diskSizes).length === 0 || staleKeys.length > 0 || missingIds.length > 0) {
+        loadDiskSizes();
+      }
     }
   }, [activeSection, launcherInstances, api]);
 

@@ -262,7 +262,7 @@ export function ProjectDetailView({
       });
       setInstallMessage({
         type: "ok",
-        text: `Установлено: ${result.fileName}`,
+        text: `Установлено: ${result?.fileName || "файл"}`,
       });
       await reloadInstalled();
     } catch (e) {
@@ -293,7 +293,7 @@ export function ProjectDetailView({
       });
       setInstallMessage({
         type: "ok",
-        text: `Установлено: ${result.fileName}`,
+        text: `Установлено: ${result?.fileName || "файл"}`,
       });
       await reloadInstalled();
     } catch (e) {

@@ -269,6 +269,8 @@ fn flush(state: &StoreState) {
             );
             let _ = fs::remove_file(&tmp);
         }
+    } else {
+        tracing::error!("flush: не удалось записать во временный файл {}", tmp.display());
     }
 }
 

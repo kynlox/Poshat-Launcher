@@ -391,10 +391,12 @@ export const poshatAPI = {
   // зарегистрироваться — ставим флаг и отписываемся сразу при появлении fn.
   on(event: string, handler: (payload: unknown) => void): () => void {
     let unlisten: (() => void) | null = null;
-    let cancelled = false;
-    listen(event, (e) => handler(e.payload))
+    let disposed = false;
+    listen(event, (e) => {
+      if (!disposed) handler(e.payload);
+    })
       .then((fn) => {
-        if (cancelled) {
+        if (disposed) {
           fn();
         } else {
           unlisten = fn;
@@ -404,7 +406,7 @@ export const poshatAPI = {
         console.error(`[poshatAPI.on] failed to listen ${event}`, err);
       });
     return () => {
-      cancelled = true;
+      disposed = true;
       if (unlisten) {
         unlisten();
         unlisten = null;

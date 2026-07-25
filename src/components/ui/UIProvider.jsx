@@ -77,13 +77,16 @@ export function UIProvider({ children }) {
   const confirm = useCallback(
     (opts) =>
       new Promise((resolve) => {
-        setConfirmState({
-          title: opts?.title || "Подтверждение",
-          message: opts?.message || "",
-          confirmLabel: opts?.confirmLabel || "Подтвердить",
-          cancelLabel: opts?.cancelLabel || "Отмена",
-          danger: !!opts?.danger,
-          resolve,
+        setConfirmState((prev) => {
+          if (prev?.resolve) prev.resolve(false);
+          return {
+            title: opts?.title || "Подтверждение",
+            message: opts?.message || "",
+            confirmLabel: opts?.confirmLabel || "Подтвердить",
+            cancelLabel: opts?.cancelLabel || "Отмена",
+            danger: !!opts?.danger,
+            resolve,
+          };
         });
       }),
     [],

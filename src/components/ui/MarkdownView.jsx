@@ -75,7 +75,12 @@ export function MarkdownView({ md, html, onImageClick }) {
       return DOMPurify.sanitize(rawHtml, {
         // Запрещаем формы / iframe / object — в описании мода им делать нечего.
         FORBID_TAGS: ["form", "iframe", "object", "embed", "input", "button"],
-        FORBID_ATTR: ["onload", "onclick", "onerror", "onmouseover"],
+        FORBID_ATTR: [
+          "onload", "onclick", "onerror", "onmouseover", "onfocus", "onblur",
+          "onsubmit", "onkeydown", "onkeyup", "onmousedown", "onmouseup",
+          "onchange", "oninput", "ondblclick", "oncontextmenu", "onselect",
+          "onreset", "onwheel", "oncopy", "oncut", "onpaste",
+        ],
         ALLOW_DATA_ATTR: false,
       });
     } catch {

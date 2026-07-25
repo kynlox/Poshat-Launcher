@@ -68,6 +68,7 @@ export function useVersions(filterTypes, order = "asc") {
 
     return () => {
       epochRef.current += 1;
+      setRefreshing(false);
     };
   }, [load, enabled]);
 

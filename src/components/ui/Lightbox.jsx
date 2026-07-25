@@ -53,7 +53,9 @@ export function Lightbox({ items, startIndex = 0, onClose }) {
   }, [items, onClose, goPrev, goNext]);
 
   if (!items?.length) return null;
+  if (idx < 0 || idx >= items.length) return null;
   const current = items[idx];
+  if (!current) return null;
 
   return (
     <div
