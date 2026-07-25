@@ -39,11 +39,12 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "createUpdaterArtifacts": false,
+    "createUpdaterArtifacts": true,
     "windows": {
       "nsis": {
         "installMode": "both"
-      }
+      },
+      "signCommand": "signtool sign /f %WINDOWS_CERTIFICATE% /p %WINDOWS_CERTIFICATE_PASSWORD% /tr http://timestamp.digicert.com /td sha256 /fd sha256 /d %1 %1"
     }
   },
   "plugins": {
