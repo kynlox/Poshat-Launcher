@@ -1,11 +1,11 @@
 {
-  "version": "v0.1.4",
-  "notes": "Auto-update via GitHub releases, 136 tests, performance improvements",
-  "pub_date": "2026-07-24T19:00:00Z",
+  "version": "v0.1.5",
+  "notes": "Bugfix: 15 bugs fixed — XSS protection, crash guards, race conditions, memory leaks",
+  "pub_date": "2026-07-25T15:30:00Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "",
-      "url": "https://github.com/docilan/Poshat-Launcher/releases/download/v0.1.4/Poshat%20Launcher_0.1.4_x64-setup.exe"
+      "url": "https://github.com/docilan/Poshat-Launcher/releases/download/v0.1.5/Poshat%20Launcher_0.1.5_x64-setup.exe"
     }
   }
 }
