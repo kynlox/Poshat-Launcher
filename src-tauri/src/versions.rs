@@ -45,7 +45,7 @@ pub struct LatestPointers {
     pub snapshot: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Manifest {
     #[serde(default)]
     pub latest: LatestPointers,
@@ -295,4 +295,159 @@ pub fn start_background_refresh() {
             let _ = fetch_manifest(true).await;
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn parse_time_valid() {
+        let ts = parse_time("2024-01-15T12:00:00.000Z");
+        assert!(ts.is_some());
+        assert!(ts.unwrap() > 0);
+    }
+
+    #[test]
+    fn parse_time_invalid() {
+        assert!(parse_time("not-a-date").is_none());
+        assert!(parse_time("").is_none());
+        assert!(parse_time("2024-13-45").is_none());
+    }
+
+    #[test]
+    fn sort_ascending_by_time() {
+        let mut list = vec![
+            VersionEntry {
+                id: "b".into(), kind: "release".into(),
+                release_time: Some("2024-02-01T00:00:00Z".into()),
+                url: None, sha1: None,
+            },
+            VersionEntry {
+                id: "a".into(), kind: "release".into(),
+                release_time: Some("2024-01-01T00:00:00Z".into()),
+                url: None, sha1: None,
+            },
+        ];
+        list = sort_ascending(list);
+        assert_eq!(list[0].id, "a");
+        assert_eq!(list[1].id, "b");
+    }
+
+    #[test]
+    fn sort_ascending_with_none_times() {
+        let mut list = vec![
+            VersionEntry {
+                id: "with-time".into(), kind: "release".into(),
+                release_time: Some("2024-01-01T00:00:00Z".into()),
+                url: None, sha1: None,
+            },
+            VersionEntry {
+                id: "no-time".into(), kind: "release".into(),
+                release_time: None,
+                url: None, sha1: None,
+            },
+        ];
+        list = sort_ascending(list);
+        assert_eq!(list[0].id, "with-time");
+        assert_eq!(list[1].id, "no-time");
+    }
+
+    #[test]
+    fn sort_ascending_fallback_to_id() {
+        let mut list = vec![
+            VersionEntry {
+                id: "b".into(), kind: "snapshot".into(),
+                release_time: None, url: None, sha1: None,
+            },
+            VersionEntry {
+                id: "a".into(), kind: "release".into(),
+                release_time: None, url: None, sha1: None,
+            },
+        ];
+        list = sort_ascending(list);
+        assert_eq!(list[0].id, "a");
+        assert_eq!(list[1].id, "b");
+    }
+
+    #[test]
+    fn normalize_valid_manifest() {
+        let raw = json!({
+            "latest": { "release": "1.21", "snapshot": "24w10a" },
+            "versions": [
+                { "id": "1.21", "type": "release", "releaseTime": "2024-06-13T00:00:00Z", "url": "https://example.com/1.21.json", "sha1": "abc" },
+                { "id": "24w10a", "type": "snapshot", "releaseTime": "2024-03-06T00:00:00Z" }
+            ]
+        });
+        let m = normalize(raw).unwrap();
+        assert_eq!(m.latest.release.as_deref(), Some("1.21"));
+        assert_eq!(m.latest.snapshot.as_deref(), Some("24w10a"));
+        assert_eq!(m.versions.len(), 2);
+        assert_eq!(m.versions[0].sha1.as_deref(), Some("abc"));
+    }
+
+    #[test]
+    fn normalize_missing_versions_field() {
+        let raw = json!({ "latest": {} });
+        assert!(normalize(raw).is_err());
+    }
+
+    #[test]
+    fn normalize_empty_versions() {
+        let raw = json!({ "versions": [] });
+        let m = normalize(raw).unwrap();
+        assert!(m.versions.is_empty());
+    }
+
+    #[test]
+    fn normalize_skips_invalid_entries() {
+        let raw = json!({
+            "versions": [
+                { "id": "valid", "type": "release" },
+                { "no_id": true, "type": "release" },
+                { "id": "also-valid", "type": "snapshot" }
+            ]
+        });
+        let m = normalize(raw).unwrap();
+        assert_eq!(m.versions.len(), 2);
+    }
+
+    #[test]
+    fn normalize_uses_time_fallback() {
+        let raw = json!({
+            "versions": [
+                { "id": "1.21", "type": "release", "time": "2024-06-13T00:00:00Z" }
+            ]
+        });
+        let m = normalize(raw).unwrap();
+        assert!(m.versions[0].release_time.is_some());
+    }
+
+    #[test]
+    fn version_entry_serialization() {
+        let v = VersionEntry {
+            id: "1.21".into(),
+            kind: "release".into(),
+            release_time: Some("2024-06-13T00:00:00Z".into()),
+            url: None,
+            sha1: None,
+        };
+        let json = serde_json::to_string(&v).unwrap();
+        assert!(json.contains("\"id\":\"1.21\""));
+        assert!(json.contains("\"type\":\"release\""));
+    }
+
+    #[test]
+    fn latest_pointers_default() {
+        let lp = LatestPointers::default();
+        assert!(lp.release.is_none());
+        assert!(lp.snapshot.is_none());
+    }
+
+    #[test]
+    fn manifest_default() {
+        let m = Manifest::default();
+        assert!(m.versions.is_empty());
+    }
 }

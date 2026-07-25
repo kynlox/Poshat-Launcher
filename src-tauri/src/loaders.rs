@@ -156,3 +156,41 @@ async fn neoforge(mc: &str) -> Result<Vec<LoaderVersion>, String> {
         })
         .collect())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn loader_version_serialization() {
+        let lv = LoaderVersion {
+            version: "0.16.11".into(),
+            stable: true,
+            tag: Some("recommended".into()),
+        };
+        let json = serde_json::to_string(&lv).unwrap();
+        assert!(json.contains("0.16.11"));
+        assert!(json.contains("recommended"));
+    }
+
+    #[test]
+    fn loader_version_no_tag() {
+        let lv = LoaderVersion {
+            version: "1.0.0".into(),
+            stable: false,
+            tag: None,
+        };
+        let json = serde_json::to_string(&lv).unwrap();
+        assert!(json.contains("tag"));
+        assert!(json.contains("null"));
+    }
+
+    #[test]
+    fn stable_detection_beta() {
+        let versions = vec!["0.15.0-beta.1", "0.15.0-rc.1", "0.15.0"];
+        let results: Vec<bool> = versions.iter()
+            .map(|v| !v.contains("beta") && !v.contains("rc"))
+            .collect();
+        assert_eq!(results, vec![false, false, true]);
+    }
+}

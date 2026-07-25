@@ -158,3 +158,133 @@ fn pick_manifest_url(platform_block: &Value, target: &str) -> Option<String> {
     let first = arr.first()?;
     first.get("manifest")?.get("url")?.as_str().map(|s| s.to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn pick_runtime_target_java8() {
+        assert_eq!(pick_runtime_target(8), "jre-legacy");
+    }
+
+    #[test]
+    fn pick_runtime_target_java16() {
+        assert_eq!(pick_runtime_target(16), "java-runtime-alpha");
+    }
+
+    #[test]
+    fn pick_runtime_target_java17() {
+        assert_eq!(pick_runtime_target(17), "java-runtime-gamma");
+    }
+
+    #[test]
+    fn pick_runtime_target_java21() {
+        assert_eq!(pick_runtime_target(21), "java-runtime-delta");
+    }
+
+    #[test]
+    fn pick_runtime_target_java25() {
+        assert_eq!(pick_runtime_target(25), "java-runtime-epsilon");
+    }
+
+    #[test]
+    fn pick_runtime_target_java11() {
+        assert_eq!(pick_runtime_target(11), "jre-legacy");
+    }
+
+    #[test]
+    fn pick_runtime_target_java20() {
+        assert_eq!(pick_runtime_target(20), "java-runtime-gamma");
+    }
+
+    #[test]
+    fn pick_runtime_target_java24() {
+        assert_eq!(pick_runtime_target(24), "java-runtime-delta");
+    }
+
+    #[test]
+    fn pick_runtime_target_java99() {
+        assert_eq!(pick_runtime_target(99), "java-runtime-epsilon");
+    }
+
+    #[test]
+    fn pick_runtime_target_java1() {
+        assert_eq!(pick_runtime_target(1), "jre-legacy");
+    }
+
+    #[test]
+    fn pick_platform_key_windows_x64() {
+        if cfg!(target_os = "windows") && cfg!(target_arch = "x86_64") {
+            assert_eq!(pick_platform_key(), "windows-x64");
+        }
+    }
+
+    #[test]
+    fn java_exe_name_format() {
+        let name = java_exe_name();
+        if cfg!(target_os = "windows") {
+            assert_eq!(name, "javaw.exe");
+        } else {
+            assert_eq!(name, "java");
+        }
+    }
+
+    #[test]
+    fn find_java_exe_nonexistent_dir() {
+        let result = find_java_exe(Path::new("/nonexistent/path/xyz"));
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn pick_manifest_url_valid() {
+        let block = json!({
+            "java-runtime-gamma": [
+                { "manifest": { "url": "https://example.com/gamma.json" } }
+            ]
+        });
+        let url = pick_manifest_url(&block, "java-runtime-gamma");
+        assert_eq!(url.as_deref(), Some("https://example.com/gamma.json"));
+    }
+
+    #[test]
+    fn pick_manifest_url_missing_target() {
+        let block = json!({
+            "java-runtime-gamma": [
+                { "manifest": { "url": "https://example.com/gamma.json" } }
+            ]
+        });
+        assert!(pick_manifest_url(&block, "java-runtime-delta").is_none());
+    }
+
+    #[test]
+    fn pick_manifest_url_empty_array() {
+        let block = json!({
+            "java-runtime-gamma": []
+        });
+        assert!(pick_manifest_url(&block, "java-runtime-gamma").is_none());
+    }
+
+    #[test]
+    fn pick_manifest_url_no_manifest_key() {
+        let block = json!({
+            "java-runtime-gamma": [
+                { "other": "data" }
+            ]
+        });
+        assert!(pick_manifest_url(&block, "java-runtime-gamma").is_none());
+    }
+
+    #[test]
+    fn java_info_serialization() {
+        let info = JavaInfo {
+            java_path: "/usr/bin/java".into(),
+            major_version: 17,
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("javaPath"));
+        assert!(json.contains("majorVersion"));
+        assert!(json.contains("17"));
+    }
+}

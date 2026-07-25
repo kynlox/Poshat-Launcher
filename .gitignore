@@ -38,6 +38,10 @@ Desktop.ini
 *.log
 npm-debug.log*
 
+# Signing keys
+update.key
+update.pub
+
 # Temp
 *.tmp
 *.tmp.*

@@ -151,3 +151,66 @@ pub async fn download_to_file(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ua_contains_launcher_name() {
+        assert!(UA.contains("PoshatLauncher"));
+    }
+
+    #[test]
+    fn ua_has_contact_url() {
+        assert!(UA.contains("https://poshat.local"));
+    }
+
+    #[test]
+    fn fetch_opts_default() {
+        let opts = FetchOpts::default();
+        assert!(opts.retries.is_none());
+        assert!(opts.timeout_secs.is_none());
+        assert!(opts.headers.is_empty());
+    }
+
+    #[test]
+    fn fetch_opts_with_headers() {
+        let opts = FetchOpts {
+            retries: Some(5),
+            timeout_secs: Some(60),
+            headers: vec![
+                ("Authorization".into(), "Bearer token".into()),
+                ("Accept".into(), "application/json".into()),
+            ],
+        };
+        assert_eq!(opts.retries, Some(5));
+        assert_eq!(opts.timeout_secs, Some(60));
+        assert_eq!(opts.headers.len(), 2);
+        assert_eq!(opts.headers[0].0, "Authorization");
+    }
+
+    #[test]
+    fn fetch_opts_clone() {
+        let opts = FetchOpts {
+            retries: Some(3),
+            timeout_secs: Some(10),
+            headers: vec![("Key".into(), "Val".into())],
+        };
+        let cloned = opts.clone();
+        assert_eq!(cloned.retries, Some(3));
+        assert_eq!(cloned.headers.len(), 1);
+    }
+
+    #[test]
+    fn fetch_opts_serialization() {
+        let opts = FetchOpts {
+            retries: Some(2),
+            timeout_secs: Some(15),
+            headers: vec![],
+        };
+        let json = serde_json::to_string(&opts).unwrap();
+        assert!(json.contains("retries"));
+        assert!(json.contains("timeout_secs"));
+    }
+}

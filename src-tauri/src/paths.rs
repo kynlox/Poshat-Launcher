@@ -57,3 +57,63 @@ pub fn java_dir_for(major: u32) -> PathBuf {
     let roots = get_roots();
     ensure_dir(roots.java.join(major.to_string()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ensure_dir_returns_path() {
+        let tmp = std::env::temp_dir().join("poshat_test_ensure_dir");
+        let result = ensure_dir(&tmp);
+        assert_eq!(result, tmp);
+        assert!(tmp.exists());
+        let _ = std::fs::remove_dir(&tmp);
+    }
+
+    #[test]
+    fn ensure_dir_nested() {
+        let tmp = std::env::temp_dir().join("poshat_test/a/b/c");
+        let result = ensure_dir(&tmp);
+        assert!(result.exists());
+        let _ = std::fs::remove_dir_all(std::env::temp_dir().join("poshat_test"));
+    }
+
+    #[test]
+    fn ensure_dir_existing() {
+        let tmp = std::env::temp_dir();
+        let result = ensure_dir(&tmp);
+        assert_eq!(result, tmp);
+    }
+
+    #[test]
+    fn roots_has_instances() {
+        let roots = get_roots();
+        assert!(roots.instances.exists());
+    }
+
+    #[test]
+    fn roots_has_shared() {
+        let roots = get_roots();
+        assert!(roots.shared.exists());
+    }
+
+    #[test]
+    fn roots_store_file_name() {
+        let roots = get_roots();
+        assert_eq!(roots.store_file.file_name().unwrap(), "store.json");
+    }
+
+    #[test]
+    fn java_dir_for_major() {
+        let dir = java_dir_for(17);
+        assert!(dir.exists());
+        assert!(dir.to_string_lossy().contains("17"));
+    }
+
+    #[test]
+    fn roots_root_contains_poshatlauncher() {
+        let roots = get_roots();
+        assert!(roots.root.to_string_lossy().contains(".poshatlauncher"));
+    }
+}

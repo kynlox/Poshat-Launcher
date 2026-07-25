@@ -215,3 +215,118 @@ pub fn active_display_name() -> Option<String> {
     get_active_account_full().map(|a| a.name)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn offline_uuid_deterministic() {
+        let a = offline_uuid("TestPlayer");
+        let b = offline_uuid("TestPlayer");
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn offline_uuid_different_for_different_names() {
+        let a = offline_uuid("Player1");
+        let b = offline_uuid("Player2");
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn offline_uuid_format() {
+        let u = offline_uuid("Test");
+        // UUID v3 format: 8-4-4-4-12
+        assert_eq!(u.len(), 36);
+        let parts: Vec<&str> = u.split('-').collect();
+        assert_eq!(parts.len(), 5);
+        assert_eq!(parts[0].len(), 8);
+        assert_eq!(parts[1].len(), 4);
+        assert_eq!(parts[2].len(), 4);
+        assert_eq!(parts[3].len(), 4);
+        assert_eq!(parts[4].len(), 12);
+    }
+
+    #[test]
+    fn offline_uuid_version_3() {
+        let u = offline_uuid("Player");
+        // Version nibble at position 13 (after first dash): should be '3'
+        assert_eq!(u.chars().nth(14), Some('3'));
+    }
+
+    #[test]
+    fn offline_uuid_variant_rfc4122() {
+        let u = offline_uuid("Player");
+        // Variant bits at position 19: should be 8, 9, a, or b
+        let variant = u.chars().nth(19).unwrap();
+        assert!("89ab".contains(variant));
+    }
+
+    #[test]
+    fn mask_token_none() {
+        assert!(mask_token(None).is_none());
+    }
+
+    #[test]
+    fn mask_token_short() {
+        let m = mask_token(Some("abc"));
+        assert_eq!(m.as_deref(), Some("…"));
+    }
+
+    #[test]
+    fn mask_token_exactly_8() {
+        let m = mask_token(Some("12345678"));
+        assert_eq!(m.as_deref(), Some("1234…5678"));
+    }
+
+    #[test]
+    fn mask_token_long() {
+        let m = mask_token(Some("abcdefghijklmnop"));
+        assert_eq!(m.as_deref(), Some("abcd…mnop"));
+    }
+
+    #[test]
+    fn mask_token_empty_string() {
+        let m = mask_token(Some(""));
+        assert_eq!(m.as_deref(), Some("…"));
+    }
+
+    #[test]
+    fn now_ms_positive() {
+        let t = now_ms();
+        assert!(t > 0);
+    }
+
+    #[test]
+    fn now_ms_approximately_now() {
+        let t = now_ms();
+        let expected = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
+        // Within 1 second
+        assert!((t - expected).abs() < 1000);
+    }
+
+    #[test]
+    fn public_account_serialization() {
+        let acc = PublicAccount {
+            id: "test-id".into(),
+            r#type: "offline".into(),
+            name: "TestPlayer".into(),
+            uuid: "12345678-1234-3234-a234-123456789abc".into(),
+            avatar_url: None,
+            added_at: Some("2024-01-01T00:00:00Z".into()),
+            expires_at: None,
+            expired: false,
+            has_token: true,
+            token_mask: Some("abcd…wxyz".into()),
+        };
+        let json = serde_json::to_string(&acc).unwrap();
+        assert!(json.contains("test-id"));
+        assert!(json.contains("TestPlayer"));
+        assert!(json.contains("tokenMask"));
+        assert!(json.contains("avatarUrl"));
+    }
+}
+
