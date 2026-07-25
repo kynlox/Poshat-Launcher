@@ -49,8 +49,11 @@ const nextId = () => ++_toastId;
 
 export function UIProvider({ children }) {
   const [toasts, setToasts] = useState([]);
-  // confirmState: null | { title, message, confirmLabel, cancelLabel, danger, resolve }
+  // confirmState: null | { title, message, confirmLabel, cancelLabel, danger }
   const [confirmState, setConfirmState] = useState(null);
+  // Resolve function stored in a ref so handleConfirmClose can call it
+  // outside of React's batched state updater (React 18 defers updater execution).
+  const confirmResolveRef = useRef(null);
 
   const dismiss = useCallback((id) => {
     setToasts((list) => list.filter((t) => t.id !== id));
@@ -77,16 +80,16 @@ export function UIProvider({ children }) {
   const confirm = useCallback(
     (opts) =>
       new Promise((resolve) => {
-        setConfirmState((prev) => {
-          if (prev?.resolve) prev.resolve(false);
-          return {
-            title: opts?.title || "Подтверждение",
-            message: opts?.message || "",
-            confirmLabel: opts?.confirmLabel || "Подтвердить",
-            cancelLabel: opts?.cancelLabel || "Отмена",
-            danger: !!opts?.danger,
-            resolve,
-          };
+        // Resolve is stored in a ref, not in state.  State updater functions in
+        // React 18 are deferred (batched), so extracting resolve from inside
+        // setConfirmState's updater would always yield null.
+        confirmResolveRef.current = resolve;
+        setConfirmState({
+          title: opts?.title || "Подтверждение",
+          message: opts?.message || "",
+          confirmLabel: opts?.confirmLabel || "Подтвердить",
+          cancelLabel: opts?.cancelLabel || "Отмена",
+          danger: !!opts?.danger,
         });
       }),
     [],
@@ -94,10 +97,12 @@ export function UIProvider({ children }) {
 
   const handleConfirmClose = useCallback(
     (result) => {
-      setConfirmState((s) => {
-        if (s) s.resolve(result);
-        return null;
-      });
+      // Read the resolve function from the ref (not from inside a state updater,
+      // which is deferred by React 18 batching).
+      const resolveFn = confirmResolveRef.current;
+      confirmResolveRef.current = null;
+      setConfirmState(null);
+      if (resolveFn) resolveFn(result);
     },
     [],
   );
@@ -272,7 +277,7 @@ function ConfirmDialog({
       />
 
       {/* Сама модалка */}
-      <div className="relative w-full max-w-md rounded-3xl border border-white/10 bg-gradient-to-br from-[#10141f] via-[#0c0f17] to-[#0a0d16] p-5 shadow-[0_40px_120px_rgba(0,0,0,0.6)]">
+      <div className="launcher-theme theme-dialog-panel relative w-full max-w-md rounded-3xl border border-white/10 bg-theme-card p-5 shadow-[0_40px_120px_rgba(0,0,0,0.6)]">
         <div className="mb-4 flex items-start gap-3">
           <div
             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
@@ -284,16 +289,17 @@ function ConfirmDialog({
             <AlertTriangle size={18} />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-base font-bold text-white">{title}</h3>
+            <h3 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>{title}</h3>
             {message && (
-              <p className="mt-1 whitespace-pre-line text-[12.5px] leading-relaxed text-zinc-300">
+              <p className="mt-1 whitespace-pre-line text-[12.5px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
                 {message}
               </p>
             )}
           </div>
           <button
             onClick={() => onResult(false)}
-            className="-mr-1 -mt-1 rounded-full p-1.5 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+            className="-mr-1 -mt-1 rounded-full p-1.5 transition hover:bg-white/10"
+            style={{ color: "var(--text-muted)" }}
             aria-label="Закрыть"
           >
             <X size={14} />

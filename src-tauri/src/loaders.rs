@@ -122,8 +122,14 @@ async fn forge(mc: &str) -> Result<Vec<LoaderVersion>, String> {
 // начинаются с маппинга MC-версии (NeoForge кодирует major.minor MC
 // в первых двух полях своей версии: для 1.20.4 → 20.4.x.y).
 async fn neoforge(mc: &str) -> Result<Vec<LoaderVersion>, String> {
-    // mc вида "1.20.4" → префикс "20.4." (для 1.21.4 → "21.4.")
-    let prefix = mc.strip_prefix("1.").map(|s| format!("{}.", s));
+    let prefix = mc.strip_prefix("1.")
+        .map(|s| format!("{}.", s))
+        .ok_or_else(|| {
+            format!(
+                "NeoForge не поддерживает MC {}. Укажи версию формата 1.xx",
+                mc
+            )
+        })?;
     let url = "https://maven.neoforged.net/api/maven/details/releases/net/neoforged/neoforge";
     let raw = fetch_json_resilient(&[url], &fetch_opts()).await?;
     let files = raw
@@ -135,17 +141,24 @@ async fn neoforge(mc: &str) -> Result<Vec<LoaderVersion>, String> {
     let mut versions = Vec::new();
     for f in files {
         let Some(name) = f.get("name").and_then(Value::as_str) else { continue };
-        if let Some(ref p) = prefix {
-            if !name.starts_with(p) {
-                continue;
-            }
+        if !name.starts_with(&prefix) {
+            continue;
         }
         versions.push(name.to_string());
     }
 
     // API отдаёт по возрастанию; нам удобнее свежие сверху.
-    versions.sort();
-    versions.reverse();
+    // Лексикографическая сортировка ломается для версий типа "20.4.10"
+    // (строка "20.4.10" < "20.4.2" в lexicographic order). Сортируем
+    // по числовым компонентам: "20.4.10" > "20.4.2".
+    versions.sort_by(|a, b| {
+        let parse_parts = |s: &str| -> Vec<u64> {
+            s.split('.').filter_map(|p| p.parse().ok()).collect()
+        };
+        let pa = parse_parts(a);
+        let pb = parse_parts(b);
+        pb.cmp(&pa) // descending
+    });
 
     Ok(versions
         .into_iter()

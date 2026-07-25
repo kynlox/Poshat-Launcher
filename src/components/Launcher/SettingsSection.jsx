@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { THEMES } from "@/data/themes";
 import {
   ChevronDown,
@@ -49,14 +49,19 @@ export const SettingsSection = memo(function SettingsSection({
     }).catch(() => {});
   }, [api]);
 
+  const storeSettingsRef = useRef(storeSettings);
+  storeSettingsRef.current = storeSettings;
+
   const handleGameJavaChange = useCallback(
     async (patch) => {
       if (!api) return;
+      const prev = storeSettingsRef.current;
       setStoreSettings((s) => ({ ...(s || {}), ...patch }));
       try {
         const snap = await api.settings.set({ settings: patch });
         if (snap?.settings) setStoreSettings(snap.settings);
       } catch (e) {
+        setStoreSettings(prev);
         toast.err(`Не удалось сохранить настройку: ${e?.message || e}`);
       }
     },

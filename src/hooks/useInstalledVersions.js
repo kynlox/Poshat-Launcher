@@ -1,32 +1,39 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-// Простой хук: возвращает Set id установленных версий.
-// Не подписан на события — обновляем явно через refresh() (например, после
-// успешной установки) или периодическим polling'ом — это дёшево, чтение FS.
 export function useInstalledVersions(pollMs = 0) {
   const [set, setSet] = useState(() => new Set());
+  const fetching = useRef(false);
+  const mounted = useRef(true);
 
   const refresh = useCallback(async () => {
+    if (fetching.current) return;
+    fetching.current = true;
     const api = window.poshatAPI;
     if (!api || !api.versions || !api.versions.installed) {
-      setSet(new Set());
+      if (mounted.current) setSet(new Set());
+      fetching.current = false;
       return;
     }
     try {
       const list = await api.versions.installed();
-      setSet(new Set(Array.isArray(list) ? list : []));
+      if (mounted.current) setSet(new Set(Array.isArray(list) ? list : []));
     } catch {
-      setSet(new Set());
+      if (mounted.current) setSet(new Set());
     }
+    fetching.current = false;
   }, []);
 
   useEffect(() => {
+    mounted.current = true;
     refresh();
     if (pollMs > 0) {
       const t = setInterval(refresh, pollMs);
-      return () => clearInterval(t);
+      return () => {
+        clearInterval(t);
+        mounted.current = false;
+      };
     }
-    return undefined;
+    return () => { mounted.current = false; };
   }, [refresh, pollMs]);
 
   return { installed: set, refresh };

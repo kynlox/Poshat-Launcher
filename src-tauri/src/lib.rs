@@ -332,17 +332,37 @@ async fn instances_import_pack(
 }
 
 #[tauri::command]
+fn instances_cancel_export() -> bool {
+    instances::cancel_export()
+}
+
+#[tauri::command]
+fn instances_cancel_import() -> bool {
+    instances::cancel_import()
+}
+
+#[tauri::command]
 fn instances_open_folder(id: String) -> Result<(), String> {
     instances::open_folder(&id)
 }
 
 #[tauri::command]
 fn instances_create_shortcut(
+    app: tauri::AppHandle,
     id: String,
     shortcut_name: Option<String>,
     icon_base64: Option<String>,
 ) -> Result<instances::ShortcutResult, String> {
-    instances::create_desktop_shortcut(&id, shortcut_name, icon_base64)
+    let result = instances::create_desktop_shortcut(&id, shortcut_name, icon_base64)?;
+    // Re-set the window icon after creating shortcut — Windows may refresh
+    // its icon cache when a .lnk pointing to the same .exe is created,
+    // which can swap the taskbar icon.
+    if let Some(window) = app.get_webview_window("main") {
+        if let Ok(img) = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png")) {
+            let _ = window.set_icon(img);
+        }
+    }
+    Ok(result)
 }
 
 #[tauri::command]
@@ -659,6 +679,8 @@ pub fn run() {
             instances_duplicate,
             instances_export_pack,
             instances_import_pack,
+            instances_cancel_export,
+            instances_cancel_import,
             instances_open_folder,
             instances_create_shortcut,
             instances_disk_size,

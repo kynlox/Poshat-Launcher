@@ -197,9 +197,23 @@ struct StoreState {
 
 static STORE: OnceLock<StoreState> = OnceLock::new();
 
+fn cleanup_orphan_tmp(store_dir: &std::path::Path) {
+    if let Ok(entries) = std::fs::read_dir(store_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().map(|e| e == "tmp").unwrap_or(false) {
+                let _ = std::fs::remove_file(&path);
+            }
+        }
+    }
+}
+
 fn state() -> &'static StoreState {
     STORE.get_or_init(|| {
         let file = get_roots().store_file.clone();
+        if let Some(parent) = file.parent() {
+            cleanup_orphan_tmp(parent);
+        }
         let data = load_from_disk(&file).unwrap_or_default();
         StoreState { data: RwLock::new(data), file, flush_mutex: parking_lot::Mutex::new(()) }
     })

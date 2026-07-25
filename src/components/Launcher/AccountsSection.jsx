@@ -229,7 +229,10 @@ export const AccountsSection = memo(function AccountsSection({ accounts, activeA
 function ActiveCard({ account }) {
   const meta = metaFor(account.type);
   const Icon = meta.Icon;
-  const added = account.addedAt ? new Date(account.addedAt).toLocaleDateString() : "—";
+  let added = "—";
+  if (account.addedAt) {
+    try { added = new Date(account.addedAt).toLocaleDateString(); } catch { added = "—"; }
+  }
   return (
     <div className="rounded-3xl border border-white/10 bg-theme-card/80 p-4">
       <div className="mb-4 flex items-center gap-3">

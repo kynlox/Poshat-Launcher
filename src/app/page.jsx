@@ -17,6 +17,7 @@ import { checkForUpdatesOnStartup } from "@/utils/updater";
 import { applyTheme, THEMES } from "@/data/themes";
 import { OnboardingTour } from "@/components/Launcher/OnboardingTour";
 import { useAnimations } from "@/utils/useAnimations";
+import { SectionErrorBoundary } from "@/components/ui/SectionErrorBoundary";
 
 function cachedThemeId() {
   if (typeof window === "undefined") return "dark";
@@ -45,7 +46,6 @@ export default function PoshatLauncherPage() {
   const [themeId, setThemeId] = useState(cachedThemeId);
   const [instancesSort, setInstancesSort] = useState("recent");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [instancesMounted, setInstancesMounted] = useState(false);
   const [pinnedIds, setPinnedIds] = useState([]);
   const [startupChecked, setStartupChecked] = useState(false);
   const [shortcutLaunchId, setShortcutLaunchId] = useState(null);
@@ -78,6 +78,7 @@ export default function PoshatLauncherPage() {
       setBootReady(true);
       return;
     }
+    let cancelled = false;
     const safe = (promise, fallback) => Promise.resolve(promise).catch(() => fallback);
     Promise.all([
       safe(api.settings.get(), null),
@@ -87,6 +88,7 @@ export default function PoshatLauncherPage() {
       safe(api.instances.getPinned(), []),
       safe(api.app.startupInstance(), null),
     ]).then(([payload, accounts, active, instances, pinned, startupId]) => {
+      if (cancelled) return;
       const settings = payload?.settings;
       if (settings) {
         setLauncherSettings((groups) => groups.map((group) => ({
@@ -124,19 +126,25 @@ export default function PoshatLauncherPage() {
       setOnboardingOpen(!settings?.onboardingCompleted && !startupId);
       setBootReady(true);
     });
+    return () => { cancelled = true; };
   }, [api]);
+
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+  const confirmRef = useRef(confirm);
+  confirmRef.current = confirm;
 
   useEffect(() => {
     if (!bootReady || !startupChecked || shortcutLaunchId) return;
     let innerCleanup = null;
     const timer = window.setTimeout(() => {
-      innerCleanup = checkForUpdatesOnStartup(toast, confirm);
+      innerCleanup = checkForUpdatesOnStartup(toastRef.current, confirmRef.current);
     }, 1600);
     return () => {
       window.clearTimeout(timer);
       if (innerCleanup) innerCleanup();
     };
-  }, [bootReady, startupChecked, shortcutLaunchId, toast, confirm]);
+  }, [bootReady, startupChecked, shortcutLaunchId]);
 
   const reloadAccounts = () => {
     if (!api) return Promise.resolve();
@@ -202,11 +210,16 @@ export default function PoshatLauncherPage() {
     };
   }, [api]);
 
+  const handlePlayInstanceRef = useRef(null);
+
+  useEffect(() => {
+    handlePlayInstanceRef.current = handlePlayInstance;
+  });
+
   useEffect(() => {
     if (!pendingAutoLaunchId) return;
     const target = launcherInstances.find((i) => i.id === pendingAutoLaunchId);
     if (!target) return;
-    // Если уже идёт запуск/установка — не дёргаем второй раз.
     if (launchState !== "idle") {
       setPendingAutoLaunchId(null);
       return;
@@ -214,12 +227,8 @@ export default function PoshatLauncherPage() {
     setActiveSection("instances");
     setActiveInstanceId(target.id);
     setPendingAutoLaunchId(null);
-    handlePlayInstance(target);
-    // handlePlayInstance читается из текущего скоупа — линт ругнётся,
-    // но это сознательно: пере-подписка на каждое изменение замыкания
-    // вызвала бы двойной запуск. Зависим только от pendingAutoLaunchId.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingAutoLaunchId, launcherInstances]);
+    handlePlayInstanceRef.current(target);
+  }, [pendingAutoLaunchId, launcherInstances, launchState]);
 
   const versionFilters = useMemo(() => {
     const versionsGroup = launcherSettings.find((group) => group.title === "Версии");
@@ -249,8 +258,14 @@ export default function PoshatLauncherPage() {
     if (api) api.instances.setLast(id).catch(() => {});
   }, [api]);
 
+  const [mountedSections, setMountedSections] = useState(() => new Set([activeSection]));
   useEffect(() => {
-    if (activeSection === "instances") setInstancesMounted(true);
+    setMountedSections((prev) => {
+      if (prev.has(activeSection)) return prev;
+      const next = new Set(prev);
+      next.add(activeSection);
+      return next;
+    });
   }, [activeSection]);
 
   const handleSidebarCollapsedChange = (collapsed) => {
@@ -525,7 +540,7 @@ export default function PoshatLauncherPage() {
   };
 
   const [diskSizes, setDiskSizes] = useState({});
-  const loadDiskSizes = async () => {
+  const loadDiskSizes = useCallback(async () => {
     if (!api || launcherInstances.length === 0) return;
     const results = await Promise.all(
       launcherInstances.map(async (inst) => {
@@ -542,7 +557,7 @@ export default function PoshatLauncherPage() {
       if (size != null) next[id] = size;
     }
     setDiskSizes(next);
-  };
+  }, [api, launcherInstances]);
   useEffect(() => {
     if (activeSection === "instances" && launcherInstances.length > 0) {
       const instanceIds = new Set(launcherInstances.map((i) => i.id));
@@ -552,7 +567,7 @@ export default function PoshatLauncherPage() {
         loadDiskSizes();
       }
     }
-  }, [activeSection, launcherInstances, api]);
+  }, [activeSection, launcherInstances, api, diskSizes, loadDiskSizes]);
 
   const handleUpdateInstance = async (id, patch) => {
     if (!api) throw new Error("API недоступен");
@@ -603,8 +618,9 @@ export default function PoshatLauncherPage() {
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-y-auto pr-1 launcher-scroll">
-            {(instancesMounted || activeSection === "instances") && (
+            {mountedSections.has("instances") && (
               <div className={activeSection === "instances" ? "animate-section-enter min-h-full" : "hidden"}>
+                <SectionErrorBoundary name="Сборки">
                 <InstancesSection
                   items={launcherInstances}
                   activeInstanceId={activeInstanceId}
@@ -631,11 +647,12 @@ export default function PoshatLauncherPage() {
                   onTogglePin={handleTogglePin}
                   diskSizes={diskSizes}
                 />
+                </SectionErrorBoundary>
               </div>
             )}
-            {activeSection !== "instances" && (
-            <div key={activeSection} className="animate-section-enter">
-            {activeSection === "home" && (
+            {mountedSections.has("home") && activeSection !== "instances" && (
+              <div className={activeSection === "home" ? "animate-section-enter" : "hidden"}>
+              <SectionErrorBoundary name="Главная">
               <HomeSection
                 selectedVersion={selectedVersion}
                 loader={loader}
@@ -652,8 +669,12 @@ export default function PoshatLauncherPage() {
                 onCancel={handleCancelInstall}
                 onConfigure={() => openSection("settings")}
               />
+              </SectionErrorBoundary>
+              </div>
             )}
-            {activeSection === "settings" && (
+            {mountedSections.has("settings") && activeSection !== "instances" && (
+              <div className={activeSection === "settings" ? "animate-section-enter" : "hidden"}>
+              <SectionErrorBoundary name="Настройки">
               <SettingsSection
                 groups={launcherSettings}
                 onCycleSetting={cycleSetting}
@@ -664,22 +685,30 @@ export default function PoshatLauncherPage() {
                 animationsEnabled={animations.enabled}
                 onToggleAnimations={animations.toggle}
               />
+              </SectionErrorBoundary>
+              </div>
             )}
-            {activeSection === "accounts" && (
+            {mountedSections.has("accounts") && activeSection !== "instances" && (
+              <div className={activeSection === "accounts" ? "animate-section-enter" : "hidden"}>
+              <SectionErrorBoundary name="Профили">
               <AccountsSection
                 accounts={launcherAccounts}
                 activeAccountId={activeAccountId}
                 onChanged={reloadAccounts}
               />
+              </SectionErrorBoundary>
+              </div>
             )}
-            {activeSection === "modsCatalog" && (
+            {mountedSections.has("modsCatalog") && activeSection !== "instances" && (
+              <div className={activeSection === "modsCatalog" ? "animate-section-enter" : "hidden"}>
+              <SectionErrorBoundary name="Моды">
               <ModsCatalogSection
                 instances={launcherInstances}
                 activeInstanceId={activeInstanceId}
                 onSelectInstance={handleSelectInstance}
               />
-            )}
-            </div>
+              </SectionErrorBoundary>
+              </div>
             )}
           </div>
         </div>

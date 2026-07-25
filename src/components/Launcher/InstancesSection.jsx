@@ -14,6 +14,7 @@ import {
   Link2,
   Image,
   Download,
+  XCircle,
 } from "lucide-react";
 import { SectionTitle } from "@/components/Launcher/SectionTitle";
 import LoaderIcons from "@/components/Launcher/LoaderIcons";
@@ -199,7 +200,7 @@ export const InstancesSection = memo(function InstancesSection({
     }
   }, [editTarget, shortcutTarget, coverTarget]);
 
-  const { installed } = useInstalledVersions(10000);
+  const { installed } = useInstalledVersions(60000);
 
   const convertToCoverPng = (file) => {
     return new Promise((resolve, reject) => {
@@ -289,10 +290,21 @@ export const InstancesSection = memo(function InstancesSection({
       const result = await poshatAPI.instances.exportPack(item.id, item.name);
       if (result) toast.ok(`Экспортировано: ${result.path}`);
     } catch (e) {
-      toast.err(`Не удалось экспортировать: ${e && e.message ? e.message : e}`);
+      if (e && e.message && (e.message.includes("отмена") || e.message.includes("cancelled"))) {
+        toast.info("Экспорт отменён");
+      } else {
+        toast.err(`Не удалось экспортировать: ${e && e.message ? e.message : e}`);
+      }
     } finally {
       setExportBusy(null);
+      setOpProgress(null);
     }
+  };
+
+  const handleCancelExport = async () => {
+    try {
+      await poshatAPI.instances.cancelExport();
+    } catch {}
   };
 
   const submitShortcut = async () => {
@@ -329,17 +341,28 @@ export const InstancesSection = memo(function InstancesSection({
   const handleImport = async () => {
     try {
       setImportBusy(true);
+      setOpProgress({ op: "import", phase: "starting", percent: 0, label: "Импорт сборки…" });
       const result = await poshatAPI.instances.importPack();
       if (result) {
         toast.ok(`Импортировано: ${result.name || result.id}`);
         onImportInstance?.();
       }
     } catch (e) {
-      if (e && e.message && e.message.includes("cancelled")) return;
-      toast.err(`Не удалось импортировать: ${e && e.message ? e.message : e}`);
+      if (e && e.message && (e.message.includes("отмена") || e.message.includes("cancelled"))) {
+        toast.info("Импорт отменён");
+      } else {
+        toast.err(`Не удалось импортировать: ${e && e.message ? e.message : e}`);
+      }
     } finally {
       setImportBusy(false);
+      setOpProgress(null);
     }
+  };
+
+  const handleCancelImport = async () => {
+    try {
+      await poshatAPI.instances.cancelImport();
+    } catch {}
   };
 
   const launchBusy =
@@ -373,14 +396,23 @@ export const InstancesSection = memo(function InstancesSection({
           description="Отдельные игровые профили со своими версиями, загрузчиками, модами и памятью. Каждый запускается из своей папки."
         />
         <div className="flex shrink-0 items-center gap-2">
-          <button
-            onClick={handleImport}
-            disabled={importBusy}
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.06] px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:bg-white/[0.1] disabled:opacity-50"
-          >
-            {importBusy ? <Loader2 size={16} className="animate-spin" /> : <FolderInput size={16} />}
-            Импорт
-          </button>
+          {importBusy ? (
+            <button
+              onClick={handleCancelImport}
+              className="inline-flex items-center gap-2 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-2.5 text-sm font-medium text-rose-300 transition hover:bg-rose-400/20"
+            >
+              <XCircle size={16} />
+              Отменить импорт
+            </button>
+          ) : (
+            <button
+              onClick={handleImport}
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.06] px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:bg-white/[0.1]"
+            >
+              <FolderInput size={16} />
+              Импорт
+            </button>
+          )}
           <button
             onClick={() => setCreateOpen(true)}
             className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2.5 text-sm font-semibold text-[#090b12] shadow-[0_18px_45px_rgba(255,255,255,0.12)] transition hover:scale-[1.02]"
@@ -627,14 +659,21 @@ export const InstancesSection = memo(function InstancesSection({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleExport(item);
+                      if (exportBusy === item.id) {
+                        handleCancelExport();
+                      } else {
+                        handleExport(item);
+                      }
                     }}
-                    disabled={exportBusy === item.id}
-                    className="rounded-2xl bg-white/8 px-3.5 py-2.5 text-zinc-300 transition hover:bg-white/12 disabled:opacity-50"
-                    title="Экспортировать сборку"
+                    className={`rounded-2xl px-3.5 py-2.5 transition ${
+                      exportBusy === item.id
+                        ? "bg-rose-500/15 text-rose-300 hover:bg-rose-500/25"
+                        : "bg-white/8 text-zinc-300 hover:bg-white/12"
+                    }`}
+                    title={exportBusy === item.id ? "Отменить экспорт" : "Экспортировать сборку"}
                   >
                     {exportBusy === item.id ? (
-                      <Loader2 size={16} className="animate-spin" />
+                      <XCircle size={16} />
                     ) : (
                       <Download size={16} />
                     )}
@@ -792,15 +831,20 @@ export const InstancesSection = memo(function InstancesSection({
 
       {opProgress && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="flex w-full max-w-sm flex-col items-center gap-5 rounded-3xl border border-white/10 bg-[#10141f] px-8 py-7 shadow-2xl">
+          <div className="launcher-theme bg-theme-card flex w-full max-w-sm flex-col items-center gap-5 rounded-3xl border border-white/10 px-8 py-7 shadow-2xl">
             <div className="relative h-16 w-16">
-              <div className="absolute inset-0 rounded-full border-4 border-white/10" />
-              <div
-                className="absolute inset-0 rounded-full border-4 border-transparent border-t-violet-400 transition-all duration-300"
-                style={{
-                  clipPath: `polygon(0 0, 100% 0, 100% ${opProgress.percent || 0}%, 0 ${opProgress.percent || 0}%)`,
-                }}
-              />
+              <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="28" fill="none" className="stroke-white/10" strokeWidth="5" />
+                <circle
+                  cx="32" cy="32" r="28" fill="none" stroke="rgb(167,139,250)" strokeWidth="5"
+                  strokeLinecap="round"
+                  style={{
+                    strokeDasharray: `${2 * Math.PI * 28}`,
+                    strokeDashoffset: `${2 * Math.PI * 28 * (1 - (opProgress.percent || 0) / 100)}`,
+                  }}
+                  className="transition-all duration-300"
+                />
+              </svg>
               <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white">
                 {opProgress.percent || 0}%
               </div>
@@ -817,6 +861,13 @@ export const InstancesSection = memo(function InstancesSection({
                 style={{ width: `${opProgress.percent || 0}%` }}
               />
             </div>
+            <button
+              onClick={opProgress.op === "export" ? handleCancelExport : handleCancelImport}
+              className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-rose-400/25 bg-rose-400/10 px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-400/20"
+            >
+              <XCircle size={12} />
+              Отменить
+            </button>
           </div>
         </div>
       )}

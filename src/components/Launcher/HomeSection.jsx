@@ -66,7 +66,7 @@ export const HomeSection = memo(function HomeSection({
 
   return (
     <section className="min-w-0 space-y-3">
-      <div className="home-hero-panel relative overflow-hidden rounded-2xl border border-white/10 bg-[#10141f]/80 p-3 shadow-[0_20px_60px_rgba(0,0,0,0.3)] sm:p-4 lg:rounded-3xl">
+      <div className="home-hero-panel relative overflow-hidden rounded-2xl border border-white/10 bg-theme-card/80 p-3 shadow-[0_20px_60px_rgba(0,0,0,0.3)] sm:p-4 lg:rounded-3xl">
         <div className="absolute right-0 top-0 h-full w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.35),transparent_45%)]" />
         <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div className="min-w-0 flex-1">

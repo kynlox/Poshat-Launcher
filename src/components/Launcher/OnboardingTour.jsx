@@ -53,7 +53,7 @@ export function OnboardingTour({ onFinish }) {
     };
     const frame = requestAnimationFrame(update);
     window.addEventListener("resize", update);
-    const onKey = (event) => event.key === "Escape" && onFinish();
+    const onKey = (event) => event.key === "Escape" && onFinish?.();
     document.addEventListener("keydown", onKey);
     return () => {
       cancelAnimationFrame(frame);
@@ -76,19 +76,19 @@ export function OnboardingTour({ onFinish }) {
       {rect && <div className="tour-highlight" style={rect} />}
       {!rect && <div className="absolute inset-0 bg-black/60" />}
       <div className="tour-tooltip launcher-theme" style={tooltip}>
-        <button type="button" onClick={onFinish} className="absolute right-2 top-2 rounded-lg p-1.5 text-zinc-400 transition hover:bg-white/10 hover:text-white" aria-label="Пропустить">
+        <button type="button" onClick={() => onFinish?.()} className="absolute right-2 top-2 rounded-lg p-1.5 text-zinc-400 transition hover:bg-white/10 hover:text-white" aria-label="Пропустить">
           <X size={15} />
         </button>
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-300">Шаг {step + 1} из {STEPS.length}</p>
         <h2 className="mt-1 text-base font-bold text-white">{item.title}</h2>
         <p className="mt-1.5 text-xs leading-5 text-zinc-300">{item.text}</p>
         <div className="mt-4 flex items-center justify-between gap-2">
-          <button type="button" onClick={onFinish} className="text-[11px] font-semibold text-zinc-400 transition hover:text-white">Пропустить</button>
+          <button type="button" onClick={() => onFinish?.()} className="text-[11px] font-semibold text-zinc-400 transition hover:text-white">Пропустить</button>
           <div className="flex gap-1.5">
             {step > 0 && (
               <button type="button" onClick={() => setStep(step - 1)} className="tour-button-secondary"><ArrowLeft size={13} /> Назад</button>
             )}
-            <button type="button" onClick={() => step === STEPS.length - 1 ? onFinish() : setStep(step + 1)} className="tour-button-primary">
+            <button type="button" onClick={() => step === STEPS.length - 1 ? onFinish?.() : setStep(step + 1)} className="tour-button-primary">
               {step === STEPS.length - 1 ? <><Check size={13} /> Готово</> : <>Далее <ArrowRight size={13} /></>}
             </button>
           </div>

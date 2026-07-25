@@ -43,18 +43,18 @@ export function CreateInstanceModal({ open, onClose, onCreate, filterTypes, inst
     };
   }, [open]);
 
-  // Esc закрывает модалку
+  // Esc закрывает модалку (но не во время отправки)
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        if (!submitting) onClose();
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, submitting]);
 
   const { data: versions, loading: versionsLoading } = useVersions(
     open ? filterTypes : null,
@@ -73,9 +73,9 @@ export function CreateInstanceModal({ open, onClose, onCreate, filterTypes, inst
   }, [versions, query]);
 
   const duplicateName = useMemo(() => {
-    const normalized = name.trim().toLocaleLowerCase();
+    const normalized = name.trim().toLowerCase();
     return !!normalized && instances.some(
-      (item) => String(item.name || "").trim().toLocaleLowerCase() === normalized,
+      (item) => String(item.name || "").trim().toLowerCase() === normalized,
     );
   }, [instances, name]);
 
@@ -109,12 +109,12 @@ export function CreateInstanceModal({ open, onClose, onCreate, filterTypes, inst
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center bg-black/[0.005] px-3 py-3 sm:px-4 sm:py-5"
-      onClick={onClose}
+      onClick={submitting ? undefined : onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="theme-dialog-panel launcher-theme flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#10141f] via-[#0c0f17] to-[#0a0d16] p-4 shadow-[0_40px_120px_rgba(0,0,0,0.6)] sm:max-h-[calc(100dvh-2.5rem)] sm:p-5"
+        className="theme-dialog-panel launcher-theme flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-theme-card p-4 shadow-[0_40px_120px_rgba(0,0,0,0.6)] sm:max-h-[calc(100dvh-2.5rem)] sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex shrink-0 items-center justify-between">
@@ -296,7 +296,7 @@ export function CreateInstanceModal({ open, onClose, onCreate, filterTypes, inst
 
       {submitting && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-5 rounded-3xl border border-white/10 bg-[#10141f] px-10 py-8 shadow-2xl">
+          <div className="bg-theme-card flex flex-col items-center gap-5 rounded-3xl border border-white/10 px-10 py-8 shadow-2xl">
             <div className="relative h-16 w-16">
               <div className="absolute inset-0 rounded-full border-4 border-white/10" />
               <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-violet-400" />

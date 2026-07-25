@@ -165,7 +165,7 @@ pub fn add_offline_account(name: String) -> Result<PublicAccount, String> {
         r#type: "offline".to_string(),
         name: clean.clone(),
         uuid: offline_uuid(&clean),
-        access_token: Some("0".repeat(32)),
+        access_token: None,
         refresh_token: None,
         client_token: None,
         expires_at: None,

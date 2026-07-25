@@ -363,6 +363,27 @@ async fn get_modrinth_project(project_id: &str) -> Result<Value, String> {
         .unwrap_or_default();
     let license = p.get("license").and_then(|l| l.get("id")).cloned().unwrap_or(Value::Null);
 
+    let author = {
+        let members_url = format!(
+            "{}/v2/project/{}/members",
+            obfstr::obfstr!("https://api.modrinth.com"),
+            url_encode(project_id),
+        );
+        fetch_json_resilient(&[&members_url], &FetchOpts::default())
+            .await
+            .ok()
+            .and_then(|m| m.as_array().cloned())
+            .and_then(|arr| arr.into_iter().next())
+            .and_then(|member| {
+                member.get("user")
+                    .and_then(|u| u.get("username"))
+                    .and_then(|u| u.as_str())
+                    .map(|s| s.to_string())
+            })
+            .map(Value::String)
+            .unwrap_or(Value::Null)
+    };
+
     Ok(json!({
         "source": "modrinth",
         "id": p.get("id").cloned().unwrap_or(Value::Null),
@@ -381,7 +402,7 @@ async fn get_modrinth_project(project_id: &str) -> Result<Value, String> {
         "license": license,
         "pageUrl": format!("https://modrinth.com/{}/{}", pt, slug),
         "projectType": pt,
-        "author": Value::Null,
+        "author": author,
     }))
 }
 
@@ -431,6 +452,20 @@ fn ensure_safe_basename(name: &str) -> Result<(), String> {
         && Path::new(name).file_name() == Some(OsStr::new(name));
     if !ok {
         return Err(format!("Подозрительное имя файла: {:?}", name));
+    }
+    // Windows reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9).
+    // Запись в эти имена обращается к системным устройствам вместо файлов.
+    let stem = Path::new(name)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
+    const RESERVED: &[&str] = &[
+        "con", "prn", "aux", "nul",
+        "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
+        "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+    ];
+    if RESERVED.contains(&stem.to_lowercase().as_str()) {
+        return Err(format!("Зарезервированное имя Windows: {:?}", name));
     }
     Ok(())
 }
@@ -634,12 +669,21 @@ pub fn remove_installed(payload: RemoveInstalledPayload) -> Result<bool, String>
     if !path_is_within(&resolved, &expected) {
         return Ok(false);
     }
-    if resolved.exists() {
-        std::fs::remove_file(&resolved).map_err(|e| e.to_string())?;
-        let _ = remove_from_manifest(&payload.instance_id, &payload.file_name);
-        return Ok(true);
+    // canonicalize()成功意味着文件存在. 直接删除而不重新检查exists(),
+    // 否则会创建TOCTOU竞态窗口——文件在canonicalize和exists()之间消失时
+    // manifest条目将不会被清理.
+    match std::fs::remove_file(&resolved) {
+        Ok(()) => {
+            let _ = remove_from_manifest(&payload.instance_id, &payload.file_name);
+            return Ok(true);
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            // Файл уже удалён (другой процесс / пользователь) — чистим манифест.
+            let _ = remove_from_manifest(&payload.instance_id, &payload.file_name);
+            return Ok(true);
+        }
+        Err(e) => return Err(e.to_string()),
     }
-    Ok(false)
 }
 
 fn path_is_within(child: &Path, parent: &Path) -> bool {
@@ -778,80 +822,88 @@ pub async fn check_updates(payload: CheckUpdatesPayload) -> Result<Vec<UpdateInf
         return Ok(Vec::new());
     }
 
-    let mut updates = Vec::new();
-    for (file_name, entry) in &manifest.files {
-        if entry.project_id.is_empty() || entry.version_id.is_empty() {
-            continue;
-        }
-        let base = format!(
-            "{}/v2/project/{}/version",
-            obfstr::obfstr!("https://api.modrinth.com"),
-            url_encode(&entry.project_id),
-        );
-        let mut params: Vec<(&str, String)> = Vec::new();
-        if entry.project_type == "mod" && meta.loader != "vanilla" {
-            params.push(("loaders", json_array_one(&meta.loader)));
-        }
-        params.push(("game_versions", json_array_one(&meta.mc_version)));
-        let url = build_url(&base, &params);
-        let data = fetch_json_resilient(&[&url], &FetchOpts::default())
-            .await
-            .unwrap_or(Value::Null);
-        let versions = match data {
-            Value::Array(a) => a,
-            _ => {
-                let url2 = build_url(&base, &[]);
-                let d2 = fetch_json_resilient(&[&url2], &FetchOpts::default())
+    use futures::future::join_all;
+
+    let tasks: Vec<_> = manifest.files.iter()
+        .filter(|(_, entry)| !entry.project_id.is_empty() && !entry.version_id.is_empty())
+        .map(|(file_name, entry)| {
+            let file_name = file_name.clone();
+            let entry = entry.clone();
+            let meta_loader = meta.loader.clone();
+            let meta_mc = meta.mc_version.clone();
+            async move {
+                let base = format!(
+                    "{}/v2/project/{}/version",
+                    obfstr::obfstr!("https://api.modrinth.com"),
+                    url_encode(&entry.project_id),
+                );
+                let mut params: Vec<(&str, String)> = Vec::new();
+                if entry.project_type == "mod" && meta_loader != "vanilla" {
+                    params.push(("loaders", json_array_one(&meta_loader)));
+                }
+                params.push(("game_versions", json_array_one(&meta_mc)));
+                let url = build_url(&base, &params);
+                let data = fetch_json_resilient(&[&url], &FetchOpts::default())
                     .await
                     .unwrap_or(Value::Null);
-                match d2 {
+                let versions = match data {
                     Value::Array(a) => a,
-                    _ => continue,
+                    _ => {
+                        let url2 = build_url(&base, &[]);
+                        let d2 = fetch_json_resilient(&[&url2], &FetchOpts::default())
+                            .await
+                            .unwrap_or(Value::Null);
+                        match d2 {
+                            Value::Array(a) => a,
+                            _ => return None,
+                        }
+                    }
+                };
+                if versions.is_empty() {
+                    return None;
                 }
+                let latest = &versions[0];
+                let latest_id = latest.get("id").and_then(|v| v.as_str()).unwrap_or("");
+                if latest_id == entry.version_id {
+                    return None;
+                }
+                let files = latest.get("files").and_then(|f| f.as_array()).cloned().unwrap_or_default();
+                let file = files.iter().find(|f| f.get("primary").and_then(|x| x.as_bool()).unwrap_or(false))
+                    .or_else(|| files.first());
+                let dl_file = file?;
+                let dl_url = dl_file.get("url").and_then(|v| v.as_str());
+                let dl_name = dl_file.get("filename").and_then(|v| v.as_str()).unwrap_or(&file_name);
+                let version_number = latest.get("version_number").and_then(|x| x.as_str()).unwrap_or("");
+                let version_name = latest.get("name").and_then(|x| x.as_str()).unwrap_or(version_number);
+
+                let proj_url = format!(
+                    "{}/v2/project/{}",
+                    obfstr::obfstr!("https://api.modrinth.com"),
+                    url_encode(&entry.project_id),
+                );
+                let proj_data = fetch_json_resilient(&[&proj_url], &FetchOpts::default())
+                    .await
+                    .unwrap_or(Value::Null);
+                let project_name = proj_data.get("title")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(version_name);
+
+                Some(UpdateInfo {
+                    file_name: file_name.clone(),
+                    project_id: entry.project_id.clone(),
+                    project_name: project_name.to_string(),
+                    current_version: entry.version_number.clone().unwrap_or_default(),
+                    latest_version_id: latest_id.to_string(),
+                    latest_version_number: version_number.to_string(),
+                    latest_file_name: dl_name.to_string(),
+                    download_url: dl_url.map(|s| s.to_string()),
+                })
             }
-        };
-        if versions.is_empty() {
-            continue;
-        }
-        let latest = &versions[0];
-        let latest_id = latest.get("id").and_then(|v| v.as_str()).unwrap_or("");
-        if latest_id == entry.version_id {
-            continue;
-        }
-        let files = latest.get("files").and_then(|f| f.as_array()).cloned().unwrap_or_default();
-        let file = files.iter().find(|f| f.get("primary").and_then(|x| x.as_bool()).unwrap_or(false))
-            .or_else(|| files.first());
-        let Some(dl_file) = file else { continue };
-        let dl_url = dl_file.get("url").and_then(|v| v.as_str());
-        let dl_name = dl_file.get("filename").and_then(|v| v.as_str()).unwrap_or(file_name);
-        let version_number = latest.get("version_number").and_then(|x| x.as_str()).unwrap_or("");
-        let version_name = latest.get("name").and_then(|x| x.as_str()).unwrap_or(version_number);
+        })
+        .collect();
 
-        // Fetch project title from Modrinth project endpoint
-        let proj_url = format!(
-            "{}/v2/project/{}",
-            obfstr::obfstr!("https://api.modrinth.com"),
-            url_encode(&entry.project_id),
-        );
-        let proj_data = fetch_json_resilient(&[&proj_url], &FetchOpts::default())
-            .await
-            .unwrap_or(Value::Null);
-        let project_name = proj_data.get("title")
-            .and_then(|v| v.as_str())
-            .unwrap_or(version_name);
-
-        updates.push(UpdateInfo {
-            file_name: file_name.clone(),
-            project_id: entry.project_id.clone(),
-            project_name: project_name.to_string(),
-            current_version: entry.version_number.clone().unwrap_or_default(),
-            latest_version_id: latest_id.to_string(),
-            latest_version_number: version_number.to_string(),
-            latest_file_name: dl_name.to_string(),
-            download_url: dl_url.map(|s| s.to_string()),
-        });
-    }
-    Ok(updates)
+    let results = join_all(tasks).await;
+    Ok(results.into_iter().flatten().collect())
 }
 
 pub fn verify_files(payload: VerifyFilesPayload) -> Result<Vec<VerifyResult>, String> {
@@ -917,15 +969,24 @@ pub async fn update_mod(payload: UpdateModPayload) -> Result<InstallResult, Stri
         }
     };
 
-    // Remove old file if name changed
+    // Move old file aside before download; restore on failure.
     let game_dir = instances::game_dir_of(&payload.instance_id);
     let dir = game_dir.join(folder_by_type(&payload.project_type));
     let old_path = dir.join(&payload.file_name);
-    let _ = std::fs::remove_file(&old_path);
+    let backup = old_path.with_extension("old");
+    let moved = std::fs::rename(&old_path, &backup).is_ok();
 
-    let result = write_resolved(&resolved, &payload.instance_id, &payload.project_type).await?;
+    let result = match write_resolved(&resolved, &payload.instance_id, &payload.project_type).await {
+        Ok(r) => r,
+        Err(e) => {
+            if moved { let _ = std::fs::rename(&backup, &old_path); }
+            return Err(e);
+        }
+    };
 
-    // Update manifest
+    // Update manifest — backup удаляем ТОЛЬКО после успешного обновления
+    // манифеста, иначе при ошибке записи манифеста старый файл будет удалён,
+    // а запись в манифесте укажет на несуществующий файл.
     let manifest = read_manifest(&payload.instance_id);
     let project_id = manifest.files.get(&payload.file_name)
         .map(|e| e.project_id.clone())
@@ -943,6 +1004,7 @@ pub async fn update_mod(payload: UpdateModPayload) -> Result<InstallResult, Stri
             size: Some(result.size),
         },
     )?;
+    let _ = std::fs::remove_file(&backup);
 
     Ok(result)
 }

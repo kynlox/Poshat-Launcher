@@ -557,6 +557,10 @@
   background-color: rgb(24 24 27 / 0.055) !important;
 }
 
+[data-theme="light"] .launcher-theme .stroke-white\/10 {
+  stroke: rgb(24 24 27 / 0.1) !important;
+}
+
 [data-theme="light"] .launcher-theme input::placeholder,
 [data-theme="light"] .launcher-theme textarea::placeholder {
   color: #71717a;

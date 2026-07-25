@@ -8,12 +8,35 @@
 // Electron-сборкой (старый instances/ читается без миграции).
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 
 use crate::paths::{ensure_dir, get_roots};
+
+// ── Cancel flags for long-running export/import operations ────────────
+static EXPORT_CANCELLED: AtomicBool = AtomicBool::new(false);
+static IMPORT_CANCELLED: AtomicBool = AtomicBool::new(false);
+
+pub fn cancel_export() -> bool {
+    EXPORT_CANCELLED.store(true, Ordering::Relaxed);
+    true
+}
+
+pub fn cancel_import() -> bool {
+    IMPORT_CANCELLED.store(true, Ordering::Relaxed);
+    true
+}
+
+fn is_export_cancelled() -> bool {
+    EXPORT_CANCELLED.load(Ordering::Relaxed)
+}
+
+fn is_import_cancelled() -> bool {
+    IMPORT_CANCELLED.load(Ordering::Relaxed)
+}
 
 /// Метадата инстанса (поля совпадают с Electron-сборкой, включая casing).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,37 +94,34 @@ pub struct InstanceView {
     pub java_args: Option<String>,
 }
 
+/// Максимальный размер файла иконки/обложки, который мы готовы прочитать
+/// в память и отдать фронту в base64. 10 MB — щедро для обложки, но
+/// гарантирует, что повреждённый/вредоносный файл не положит процесс.
+const MAX_IMAGE_DATA_BYTES: u64 = 10 * 1024 * 1024;
+
+/// Читает файл ≤ MAX_IMAGE_DATA_BYTES и возвращает base64-строку.
+/// Возвращает None, если файл не существует, слишком большой или не читается.
+fn read_image_b64(path: &std::path::Path) -> Option<String> {
+    use base64::Engine;
+    let meta = std::fs::metadata(path).ok()?;
+    if meta.len() > MAX_IMAGE_DATA_BYTES {
+        return None;
+    }
+    let bytes = std::fs::read(path).ok()?;
+    Some(base64::engine::general_purpose::STANDARD.encode(&bytes))
+}
+
 fn view_from(id: String, m: InstanceMeta) -> InstanceView {
     let (icon_path, icon_data) = if let Some(ref ip) = m.icon_path {
         let full = instance_dir(&id).join(ip);
-        if full.exists() {
-            use base64::Engine;
-            if let Ok(bytes) = std::fs::read(&full) {
-                (Some(ip.clone()), Some(base64::engine::general_purpose::STANDARD.encode(&bytes)))
-            } else {
-                (Some(ip.clone()), None)
-            }
-        } else {
-            (Some(ip.clone()), None)
-        }
+        (Some(ip.clone()), read_image_b64(&full))
     } else {
         (None, None)
     };
-    let cover_data = if let Some(ref cp) = m.cover_path {
+    let cover_data = m.cover_path.as_ref().and_then(|cp| {
         let full = instance_dir(&id).join(cp);
-        if full.exists() {
-            use base64::Engine;
-            if let Ok(bytes) = std::fs::read(&full) {
-                Some(base64::engine::general_purpose::STANDARD.encode(&bytes))
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    } else {
-        None
-    };
+        read_image_b64(&full)
+    });
     let video_cover_path = m.video_cover_path.and_then(|vcp| {
         let full = instance_dir(&id).join(&vcp);
         if full.exists() {
@@ -374,9 +394,7 @@ pub struct CreatePayload {
 
 pub fn create_instance(payload: CreatePayload) -> Result<InstanceView, String> {
     let clean_name = validated_unique_name(&payload.name, None)?;
-    if payload.mc_version.trim().is_empty() {
-        return Err("Версия Minecraft обязательна".to_string());
-    }
+    validate_version(&payload.mc_version)?;
 
     let existing: std::collections::HashSet<String> =
         list_instances().into_iter().map(|i| i.id).collect();
@@ -431,9 +449,19 @@ pub fn update_instance(id: &str, patch: UpdatePayload) -> Result<InstanceView, S
     if let Some(name) = patch.name {
         meta.name = validated_unique_name(&name, Some(id))?;
     }
-    if let Some(v) = patch.mc_version { meta.mc_version = v; }
+    if let Some(v) = patch.mc_version {
+        validate_version(&v)?;
+        meta.mc_version = v;
+    }
     if let Some(v) = patch.loader { meta.loader = v; }
-    if let Some(v) = patch.loader_version { meta.loader_version = v; }
+    if let Some(v) = patch.loader_version {
+        if let Some(ref lv) = v {
+            if !lv.is_empty() {
+                validate_version(lv)?;
+            }
+        }
+        meta.loader_version = v;
+    }
     if let Some(v) = patch.memory_gb { meta.memory_gb = v; }
     if let Some(v) = patch.last_played { meta.last_played = v; }
     if let Some(v) = patch.java_args { meta.java_args = v; }
@@ -547,6 +575,7 @@ pub fn export_instance_pack(
     out_path: Option<String>,
     app: Option<&tauri::AppHandle>,
 ) -> Result<PackResult, String> {
+    EXPORT_CANCELLED.store(false, Ordering::Relaxed);
     validate_id(id)?;
     let Some(meta) = read_meta(id) else {
         return Err(format!("Инстанс {} не найден", id));
@@ -630,6 +659,7 @@ pub fn export_instance_pack(
 }
 
 pub fn import_instance_pack(path: String, app: Option<&tauri::AppHandle>) -> Result<InstanceView, String> {
+    IMPORT_CANCELLED.store(false, Ordering::Relaxed);
     if let Some(a) = app {
         let _ = a.emit("import:progress", serde_json::json!({
             "phase": "reading",
@@ -699,11 +729,15 @@ pub fn import_instance_pack(path: String, app: Option<&tauri::AppHandle>) -> Res
     }
     let mut extracted = 0u64;
     for i in 0..zip.len() {
+        if is_import_cancelled() {
+            return Err("Распаковка отменена пользователем".to_string());
+        }
         let mut f = zip.by_index(i).map_err(|e| e.to_string())?;
         let name = f.name().replace('\\', "/");
         let Some(rel) = name.strip_prefix("overrides/") else { continue; };
-        if rel.is_empty() || rel.contains("..") { continue; }
+        if rel.is_empty() || rel.contains("..") || rel.starts_with('/') { continue; }
         let out = dst_mc.join(rel);
+        if !out.starts_with(&dst_mc) { continue; }
         if f.is_dir() {
             let _ = std::fs::create_dir_all(&out);
         } else {
@@ -778,6 +812,9 @@ fn add_dir_to_zip(
     progress: &mut ZipProgress<'_>,
 ) -> Result<(), String> {
     for entry in std::fs::read_dir(dir).map_err(|e| e.to_string())? {
+        if is_export_cancelled() {
+            return Err("Упаковка отменена пользователем".to_string());
+        }
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
         let file_name = entry.file_name().to_string_lossy().to_string();
@@ -1040,13 +1077,7 @@ pub fn get_instance_video_cover_data(id: &str) -> Option<String> {
     let meta = read_meta(id)?;
     let file = meta.video_cover_path?;
     let full = instance_dir(id).join(&file);
-    if full.exists() {
-        use base64::Engine;
-        let bytes = std::fs::read(&full).ok()?;
-        Some(base64::engine::general_purpose::STANDARD.encode(&bytes))
-    } else {
-        None
-    }
+    read_image_b64(&full)
 }
 
 // ----------------------- открыть папку / ярлык -----------------------

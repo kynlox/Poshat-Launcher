@@ -40,18 +40,18 @@ export function EditInstanceModal({ open, instance, onClose, onSave, onSetIcon, 
     setActiveIconId(null);
   }, [open, instance]);
 
-  // Esc закрывает окно — без этого только крестик в углу.
+  // Esc закрывает окно — без этого только крестик в углу (но не во время сохранения).
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        if (!submitting) onClose();
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, submitting]);
 
   useEffect(() => {
     if (!open) return;
@@ -78,10 +78,10 @@ export function EditInstanceModal({ open, instance, onClose, onSave, onSetIcon, 
   }, [versions, query]);
 
   const duplicateName = useMemo(() => {
-    const normalized = name.trim().toLocaleLowerCase();
+    const normalized = name.trim().toLowerCase();
     return !!normalized && instances.some(
       (item) => item.id !== instance?.id
-        && String(item.name || "").trim().toLocaleLowerCase() === normalized,
+        && String(item.name || "").trim().toLowerCase() === normalized,
     );
   }, [instance?.id, instances, name]);
 
@@ -151,12 +151,12 @@ export function EditInstanceModal({ open, instance, onClose, onSave, onSetIcon, 
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center bg-black/[0.005] px-3 py-3 sm:px-4 sm:py-5"
-      onClick={onClose}
+      onClick={submitting ? undefined : onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="theme-dialog-panel launcher-theme flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#10141f] via-[#0c0f17] to-[#0a0d16] p-4 shadow-[0_40px_120px_rgba(0,0,0,0.6)] sm:max-h-[calc(100dvh-2.5rem)] sm:p-5"
+        className="theme-dialog-panel launcher-theme flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-theme-card p-4 shadow-[0_40px_120px_rgba(0,0,0,0.6)] sm:max-h-[calc(100dvh-2.5rem)] sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex shrink-0 items-center justify-between">

@@ -44,10 +44,16 @@ export const GameJavaPanel = memo(function GameJavaPanel({ settings, onChange })
   const [height, setHeight] = useState(settings?.mcWindowHeight ?? 480);
   const [jvmArgs, setJvmArgs] = useState(settings?.extraJvmArgs ?? "");
 
-  // Когда настройки приходят извне (например, после первой загрузки),
-  // подтягиваем их в локальные стейты — иначе UI застрянет на дефолтах.
+  const havePending = useRef(false);
+  const pendingRef = useRef({});
+
+  // Синхронизируем локальные стейты с настройками ТОЛЬКО при первом монтаже
+  // или когда нет активных пользовательских правок (havePending). Иначе
+  // persist-гонка: юзер меняет поле A, persist шлёт patch, родитель
+  // пересоздаёт settings → эффект сбрасывает поле B, которое юзер
+  // сейчас редактирует.
   useEffect(() => {
-    if (!settings) return;
+    if (!settings || havePending.current) return;
     setWidth(settings.mcWindowWidth ?? 854);
     setHeight(settings.mcWindowHeight ?? 480);
     setJvmArgs(settings.extraJvmArgs ?? "");
@@ -55,17 +61,24 @@ export const GameJavaPanel = memo(function GameJavaPanel({ settings, onChange })
     settings?.mcWindowWidth,
     settings?.mcWindowHeight,
     settings?.extraJvmArgs,
-    settings,
   ]);
 
-  // Дебаунс для чисел/текстарии: даём юзеру допечатать прежде, чем пишем
-  // в стор. 600 мс — достаточно для нормального набора.
+  // Дебаунс + мерж патчей: несколько быстрых изменений в разных полях
+  // (ширина → высота → JVM args) схлопываются в один persist. Без мержа
+  // каждое поле затирало бы предыдущий debounce, теряя данные соседнего поля.
   const debounceRef = useRef(null);
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
   const persist = useCallback(
     (patch) => {
+      Object.assign(pendingRef.current, patch);
+      havePending.current = true;
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => onChange?.(patch), 600);
+      debounceRef.current = setTimeout(() => {
+        const merged = { ...pendingRef.current };
+        pendingRef.current = {};
+        havePending.current = false;
+        onChange?.(merged);
+      }, 600);
     },
     [onChange],
   );

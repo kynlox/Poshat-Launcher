@@ -376,9 +376,11 @@ export function ModsCatalogSection({
         {/* Список — одна колонка, плотные карточки в стиле Modrinth */}
         <div className="flex flex-col gap-2">
           {results.map((item) => {
-            const installedMatch = installedFiles.some((f) =>
-              f.toLowerCase().includes(String(item.slug || item.id).toLowerCase()),
-            );
+            const installedMatch = installedFiles.some((f) => {
+              const fn = f.toLowerCase();
+              const slug = String(item.slug || item.id).toLowerCase();
+              return fn === slug || fn.startsWith(slug + "-") || fn.startsWith(slug + "_") || fn.startsWith(slug + ".");
+            });
             const isInstalling = installingId === item.id;
             return (
               <article

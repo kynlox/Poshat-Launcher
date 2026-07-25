@@ -334,6 +334,8 @@ export const poshatAPI = {
       if (!path || Array.isArray(path)) return null;
       return invoke<unknown>("instances_import_pack", { path });
     },
+    cancelExport: (): Promise<boolean> => invoke<boolean>("instances_cancel_export"),
+    cancelImport: (): Promise<boolean> => invoke<boolean>("instances_cancel_import"),
     setLast: (id: string | null): Promise<void> =>
       invoke<void>("set_last_instance_id", { id }).then(() => undefined),
     openFolder: (id: string): Promise<void> => invoke<void>("instances_open_folder", { id }),
