@@ -1,83 +1,275 @@
+<div align="center">
+
+<img src="poshat-logo.png" alt="Poshat Launcher" width="96" />
+
 # Poshat Launcher
 
-Minecraft-лаунчер на Tauri 2 (Rust + React). Поддерживает Fabric, Forge, NeoForge, Quilt, Vanilla.
+### Быстрый лаунчер Minecraft на Rust — без Electron, без лишнего веса, без путаницы между сборками
 
-**Версия:** 0.1.2  
-**Лицензия:** Закрытая (временно)
+[![Latest Release](https://img.shields.io/github/v/release/docilan/Poshat-Launcher?label=version&color=2563eb)](https://github.com/docilan/Poshat-Launcher/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/docilan/Poshat-Launcher/total?label=downloads&color=16a34a)](https://github.com/docilan/Poshat-Launcher/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-64748b)](#системные-требования)
+[![License](https://img.shields.io/badge/license-proprietary-red)](#лицензия)
+[![Issues](https://img.shields.io/github/issues/docilan/Poshat-Launcher?label=open%20issues&color=f59e0b)](https://github.com/docilan/Poshat-Launcher/issues)
+
+<br>
+
+<a href="https://github.com/docilan/Poshat-Launcher/releases/latest">
+  <img src="https://img.shields.io/badge/⬇_Скачать_последнюю_версию-16a34a?style=for-the-badge" />
+</a>
+&nbsp;
+<a href="https://github.com/docilan/Poshat-Launcher/issues/new?template=bug_report.md">
+  <img src="https://img.shields.io/badge/🐛_Сообщить_об_ошибке-1e293b?style=for-the-badge" />
+</a>
+&nbsp;
+<a href="https://github.com/docilan/Poshat-Launcher/issues/new?template=feature_request.md">
+  <img src="https://img.shields.io/badge/💡_Предложить_идею-1e293b?style=for-the-badge" />
+</a>
+
+</div>
+
+<br>
+
+<div align="center">
+<sub>Windows · Linux &nbsp;|&nbsp; Fabric · Forge · NeoForge · Quilt · Vanilla &nbsp;|&nbsp; Оффлайн и Ely.by</sub>
+</div>
+
+---
+
+## Содержание
+
+- [Скриншоты](#скриншоты)
+- [Зачем ещё один лаунчер](#зачем-ещё-один-лаунчер)
+- [Возможности](#возможности)
+- [Сравнение с другими лаунчерами](#сравнение-с-другими-лаунчерами)
+- [Скачать и установить](#скачать-и-установить)
+- [Системные требования](#системные-требования)
+- [Часто задаваемые вопросы](#часто-задаваемые-вопросы)
+- [Безопасность и конфиденциальность](#безопасность-и-конфиденциальность)
+- [Дорожная карта](#дорожная-карта)
+- [Поддержка и обратная связь](#поддержка-и-обратная-связь)
+- [Благодарности](#благодарности)
+- [Исходный код](#исходный-код)
+- [Лицензия](#лицензия)
+
+---
+
+## Скриншоты
+
+<div align="center">
+
+<!--
+  TODO: заменить на реальные скриншоты интерфейса (рекомендуется 3–4 штуки,
+  формат 16:9, ширина ~960px): главный экран, каталог модов, управление
+  инстансами, настройки аккаунта.
+-->
+<i>Скриншоты интерфейса появятся здесь после следующего обновления.</i>
+
+</div>
+
+---
+
+## Зачем ещё один лаунчер
+
+Большинство лаунчеров решают одну из двух задач: либо просто запускают Minecraft, либо превращаются в перегруженный комбайн с десятком лишних функций. При этом почти все построены на Electron — а это означает медленный старт и сотни мегабайт под простую форму входа.
+
+**Poshat Launcher** решает конкретную проблему: сделать запуск быстрым, а управление модами и сборками — предсказуемым, без риска, что моды одной сборки случайно попадут в другую.
+
+---
 
 ## Возможности
 
-- Автономные инстансы (каждый со своей папкой mods/saves)
-- Установка Minecraft, библиотек, ассетов через lyceris
-- Каталог модов/шейдеров/ресурспаков (Modrinth)
-- Мультиаккаунт (оффлайн + Ely.by)
-- Автообновление
-- Экспорт/импорт сборок (.mrpack)
-- Ярлыки на рабочем столе
+<table>
+<tr>
+<td width="50%" valign="top">
 
-## Требования
+**⚡ Производительность**
+- Нативная сборка на Rust — запуск за доли секунды
+- Минимальное потребление RAM в простое
+- Отсутствие Electron/Chromium под капотом
 
-- Node.js 20+
-- Rust stable
-- Windows: WebView2 (обычно уже установлен)
-- Linux: `libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev`, `libgtk-3-dev`, `libayatana-appindicator3-dev`
+**🗂️ Управление сборками**
+- Полная изоляция инстансов
+- Собственная обложка и ярлык для каждой сборки
+- Информация о занимаемом месте на диске
 
-## Разработка
+</td>
+<td width="50%" valign="top">
 
+**🧩 Контент**
+- Каталог модов, шейдеров и ресурспаков из Modrinth
+- Установка в один клик, фильтрация по версии игры
+- Экспорт и импорт сборок через стандарт `.mrpack`
+
+**👥 Аккаунты**
+- Оффлайн-режим
+- Авторизация через [Ely.by](https://ely.by)
+- Быстрое переключение между аккаунтами
+
+</td>
+</tr>
+</table>
+
+**Поддерживаемые загрузчики:** Fabric · Forge · NeoForge · Quilt · Vanilla
+
+---
+
+## Сравнение с другими лаунчерами
+
+| | Poshat Launcher | Официальный лаунчер | Лаунчеры на Electron |
+|---|:---:|:---:|:---:|
+| Технология | Rust (нативно) | Java | Electron / Chromium |
+| Изоляция сборок | ✅ Полная | ⚠️ Ограниченная | ⚠️ Зависит от лаунчера |
+| Каталог модов внутри | ✅ Modrinth | ❌ | ✅ Обычно есть |
+| Импорт/экспорт `.mrpack` | ✅ | ❌ | ⚠️ Не у всех |
+| Сторонние аккаунты (Ely.by) | ✅ | ❌ | ⚠️ Не у всех |
+| Типичный размер установщика | Компактный | Средний | Крупный |
+
+> Таблица отражает функциональность на момент актуальной версии Poshat Launcher и приведена для общего ориентира, а не как исчерпывающий бенчмарк.
+
+---
+
+## Скачать и установить
+
+Перейди на страницу [**Releases**](https://github.com/docilan/Poshat-Launcher/releases/latest) и выбери сборку под свою систему:
+
+| Платформа | Формат | Ссылка |
+|---|---|---|
+| Windows x64 | Установщик (`.exe`) | [Скачать](https://github.com/docilan/Poshat-Launcher/releases/latest) |
+| Windows x64 | Portable (`.zip`) | [Скачать](https://github.com/docilan/Poshat-Launcher/releases/latest) |
+| Linux x64 | `.deb` | [Скачать](https://github.com/docilan/Poshat-Launcher/releases/latest) |
+| Linux x64 | AppImage | [Скачать](https://github.com/docilan/Poshat-Launcher/releases/latest) |
+
+**Установка на Windows:** запусти `.exe` и следуй мастеру установки, либо распакуй `.zip` для portable-версии без установки.
+
+**Установка на Linux (`.deb`):**
 ```bash
-npm install
-npx tauri dev
+sudo dpkg -i poshat-launcher_*.deb
+# если apt ругается на зависимости:
+sudo apt-get install -f
 ```
 
-## Сборка
-
+**Запуск AppImage:**
 ```bash
-npm run build
-npx tauri build
+chmod +x Poshat-Launcher_*.AppImage
+./Poshat-Launcher_*.AppImage
 ```
 
-## Тесты
+---
 
-```bash
-# Rust (unit tests)
-cd src-tauri && cargo test --lib
+## Системные требования
 
-# Frontend (Vitest)
-npm run test
+| | Минимальные | Рекомендуемые |
+|---|---|---|
+| ОС | Windows 10 / Ubuntu 20.04+ | Windows 11 / Ubuntu 22.04+ |
+| Java | Устанавливается автоматически при первом запуске | — |
+| ОЗУ | 4 ГБ (для самого лаунчера) | 8 ГБ и выше, с учётом Minecraft |
+| Место на диске | 200 МБ под лаунчер | + место под сборки и моды |
 
-# Clippy
-cd src-tauri && cargo clippy --lib -- -D warnings
-```
+---
 
-## Структура проекта
+## Часто задаваемые вопросы
 
-```
-src-tauri/src/
-├── main.rs           # Точка входа
-├── lib.rs            # Tauri Builder + команды
-├── accounts.rs       # Аккаунты (offline + elyby)
-├── catalog.rs        # Каталог Modrinth
-├── elyby.rs          # Авторизация Ely.by
-├── http.rs           # HTTP-клиент (reqwest + rustls)
-├── instances.rs      # Инстансы (CRUD, иконки, обложки)
-├── java.rs           # Java-детект (Mojang runtime)
-├── launch.rs         # Запуск Minecraft
-├── loaders.rs        # Версии загрузчиков (Fabric/Forge/...)
-├── mc_install.rs     # Установка клиента
-├── paths.rs          # Директории (%APPDATA%/.poshatlauncher/)
-├── security.rs       # Анти-отладка (Windows)
-├── store.rs          # Конфиг (store.json)
-└── versions.rs       # Версии Minecraft
+<details>
+<summary><b>Чем это лучше стандартного лаунчера Minecraft?</b></summary>
+<br>
 
-src/
-├── api/poshatAPI.ts  # Шим window.poshatAPI → Tauri invoke
-├── app/page.jsx      # Главный layout
-├── components/       # UI-компоненты
-├── data/             # Статические данные
-├── hooks/            # React-хуки
-└── utils/            # Утилиты
-```
+Полная изоляция сборок, встроенный каталог модов Modrinth и заметно более быстрый запуск за счёт нативной сборки на Rust вместо Electron.
+</details>
+
+<details>
+<summary><b>Мои старые сборки и моды перенесутся?</b></summary>
+<br>
+
+Да, если сборка экспортирована в формате `.mrpack` — этот стандарт поддерживают большинство современных лаунчеров, включая Modrinth App и Prism Launcher.
+</details>
+
+<details>
+<summary><b>Это безопасно? Не украдут ли аккаунт?</b></summary>
+<br>
+
+Авторизация проходит через официальный оффлайн-режим или стороннего провайдера Ely.by. Лаунчер никогда не запрашивает пароль от Mojang/Microsoft аккаунта напрямую.
+</details>
+
+<details>
+<summary><b>Планируется ли поддержка macOS?</b></summary>
+<br>
+
+На данный момент в приоритете стабильность на Windows и Linux. macOS рассматривается, но точных сроков пока нет — следи за разделом «Дорожная карта».
+</details>
+
+<details>
+<summary><b>Исходный код открыт?</b></summary>
+<br>
+
+Пока нет, но появится в этом репозитории в одном из ближайших обновлений. После публикации использовать и изменять код можно будет только с разрешения автора — подробности в разделе [«Исходный код»](#исходный-код).
+</details>
+
+---
+
+## Безопасность и конфиденциальность
+
+- Лаунчер не запрашивает и не хранит пароль от Mojang/Microsoft аккаунта
+- Обмен данными с каталогом модов идёт напрямую с официальным Modrinth API
+- Установочный пакет защищён от подмены и модификации бинарника
+
+Если ты нашёл уязвимость, пожалуйста, не публикуй детали в открытом Issue — напиши об этом отдельно через раздел [Issues](https://github.com/docilan/Poshat-Launcher/issues) с пометкой `security`, и это будет рассмотрено в приоритетном порядке.
+
+---
+
+## Дорожная карта
+
+- [x] Изоляция инстансов
+- [x] Каталог модов, шейдеров и ресурспаков (Modrinth)
+- [x] Экспорт / импорт `.mrpack`
+- [x] Поддержка Fabric, Forge, NeoForge, Quilt
+- [x] Аккаунты: оффлайн + Ely.by
+- [x] Сборки для Linux (`.deb` / AppImage)
+- [ ] Публикация исходного кода
+- [ ] Поддержка macOS
+- [ ] Встроенный менеджер серверов
+- [ ] Синхронизация настроек между устройствами
+
+> Порядок пунктов не отражает приоритет — актуальные обсуждения фич смотри в [Issues с меткой `enhancement`](https://github.com/docilan/Poshat-Launcher/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
+
+---
+
+## Поддержка и обратная связь
+
+| Что случилось | Куда обращаться |
+|---|---|
+| Нашёл баг | [Создать Bug Report](https://github.com/docilan/Poshat-Launcher/issues/new?template=bug_report.md) |
+| Есть идея для новой функции | [Создать Feature Request](https://github.com/docilan/Poshat-Launcher/issues/new?template=feature_request.md) |
+| Вопрос по установке или использованию | [Открыть Issue](https://github.com/docilan/Poshat-Launcher/issues) |
+
+---
+
+## Благодарности
+
+Poshat Launcher существует благодаря открытым API и инструментам:
+
+- [Modrinth](https://modrinth.com) — каталог модов, шейдеров и ресурспаков
+- [Ely.by](https://ely.by) — авторизация для игроков без лицензии
+- [Tauri](https://tauri.app) — фреймворк, на котором построен лаунчер
+
+---
+
+## Исходный код
+
+Сейчас в репозитории опубликованы только готовые релизы. Исходный код лаунчера пока не выложен, но появится здесь в одном из ближайших обновлений.
+
+После публикации использование, изменение и распространение кода будет разрешено только с письменного согласия автора.
+
+Хочешь получить доступ раньше официальной публикации или обсудить условия использования — напиши через [Issues](https://github.com/docilan/Poshat-Launcher/issues).
+
+---
 
 ## Лицензия
 
-Закрытая. Временно.
+Проект — включая собранные релизы и, после публикации, исходный код — распространяется под закрытой лицензией. Использование, копирование и распространение без письменного разрешения автора запрещены.
+
+---
+
+<div align="center">
+<sub>Сделано с заботой о деталях.</sub>
+</div>
