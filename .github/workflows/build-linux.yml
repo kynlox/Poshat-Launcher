@@ -46,10 +46,9 @@ jobs:
         run: npm install
 
       - name: Build Tauri app
-        run: npx tauri build --bundles deb,appimage
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          rm -f src-tauri/update.pub
+          npx tauri build --bundles deb,appimage
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
