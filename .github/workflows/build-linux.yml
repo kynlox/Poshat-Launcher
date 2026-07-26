@@ -41,7 +41,7 @@ jobs:
           restore-keys: linux-cargo-
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build Tauri app
         run: npx tauri build --bundles deb,appimage
