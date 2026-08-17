@@ -252,9 +252,7 @@ chmod +x Poshat-Launcher_*.AppImage
 - [x] Портативная версия
 - [x] Обложки и ярлыки сборок
 - [x] Сборки для Linux (`.deb` / AppImage)
-- [ ] Публикация исходного кода
 - [ ] Поддержка macOS
-- [ ] Встроенный менеджер серверов
 - [ ] Синхронизация настроек между устройствами
 
 > Порядок пунктов не отражает приоритет — актуальные обсуждения фич смотри в [Issues с меткой `enhancement`](https://github.com/kynlox/Poshat-Launcher/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
