@@ -6,23 +6,23 @@
 
 ### Быстрый лаунчер Minecraft на Rust — без Electron, без лишнего веса, без путаницы между сборками
 
-[![Latest Release](https://img.shields.io/github/v/release/docilan/Poshat-Launcher?label=version&color=2563eb)](https://github.com/docilan/Poshat-Launcher/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/docilan/Poshat-Launcher/total?label=downloads&color=16a34a)](https://github.com/docilan/Poshat-Launcher/releases)
+[![Latest Release](https://img.shields.io/github/v/release/kynlox/Poshat-Launcher?label=version&color=2563eb)](https://github.com/kynlox/Poshat-Launcher/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/kynlox/Poshat-Launcher/total?label=downloads&color=16a34a)](https://github.com/kynlox/Poshat-Launcher/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-64748b)](#системные-требования)
 [![License](https://img.shields.io/badge/license-proprietary-red)](#лицензия)
-[![Issues](https://img.shields.io/github/issues/docilan/Poshat-Launcher?label=open%20issues&color=f59e0b)](https://github.com/docilan/Poshat-Launcher/issues)
+[![Issues](https://img.shields.io/github/issues/kynlox/Poshat-Launcher?label=open%20issues&color=f59e0b)](https://github.com/kynlox/Poshat-Launcher/issues)
 
 <br>
 
-<a href="https://github.com/docilan/Poshat-Launcher/releases/latest">
+<a href="https://github.com/kynlox/Poshat-Launcher/releases/latest">
   <img src="https://img.shields.io/badge/⬇_Скачать_последнюю_версию-16a34a?style=for-the-badge" />
 </a>
 &nbsp;
-<a href="https://github.com/docilan/Poshat-Launcher/issues/new?template=bug_report.md">
+<a href="https://github.com/kynlox/Poshat-Launcher/issues/new?template=bug_report.md">
   <img src="https://img.shields.io/badge/🐛_Сообщить_об_ошибке-1e293b?style=for-the-badge" />
 </a>
 &nbsp;
-<a href="https://github.com/docilan/Poshat-Launcher/issues/new?template=feature_request.md">
+<a href="https://github.com/kynlox/Poshat-Launcher/issues/new?template=feature_request.md">
   <img src="https://img.shields.io/badge/💡_Предложить_идею-1e293b?style=for-the-badge" />
 </a>
 
@@ -31,7 +31,7 @@
 <br>
 
 <div align="center">
-<sub>Windows · Linux &nbsp;|&nbsp; Fabric · Forge · NeoForge · Quilt · Vanilla &nbsp;|&nbsp; Оффлайн и Ely.by</sub>
+<sub>Windows · Linux &nbsp;|&nbsp; Fabric · Forge · NeoForge · Quilt · Vanilla &nbsp;|&nbsp; Оффлайн · Ely.by · Microsoft</sub>
 </div>
 
 ---
@@ -58,12 +58,19 @@
 
 <div align="center">
 
-<!--
-  TODO: заменить на реальные скриншоты интерфейса (рекомендуется 3–4 штуки,
-  формат 16:9, ширина ~960px): главный экран, каталог модов, управление
-  инстансами, настройки аккаунта.
--->
-<i>Скриншоты интерфейса появятся здесь после следующего обновления.</i>
+<table>
+<tr>
+<td><img src="screenshots/home.png" alt="Главный экран" width="100%" /></td>
+<td><img src="screenshots/catalog.png" alt="Каталог модов" width="100%" /></td>
+</tr>
+<tr>
+<td><img src="screenshots/instances.png" alt="Управление сборками" width="100%" /></td>
+<td><img src="screenshots/accounts.png" alt="Аккаунты" width="100%" /></td>
+</tr>
+<tr>
+<td colspan="2"><img src="screenshots/settings.png" alt="Настройки" width="100%" /></td>
+</tr>
+</table>
 
 </div>
 
@@ -90,7 +97,7 @@
 
 **🗂️ Управление сборками**
 - Полная изоляция инстансов
-- Собственная обложка и ярлык для каждой сборки
+- Собственная обложка, иконка и ярлык на рабочем столе для каждой сборки
 - Информация о занимаемом месте на диске
 
 </td>
@@ -99,12 +106,12 @@
 **🧩 Контент**
 - Каталог модов, шейдеров и ресурспаков из Modrinth
 - Установка в один клик, фильтрация по версии игры
-- Экспорт и импорт сборок через стандарт `.mrpack`
+- Экспорт и импорт сборок через стандарт `.mrpack` — полная совместимость с Modrinth App и Prism Launcher
 
 **👥 Аккаунты**
 - Оффлайн-режим
 - Авторизация через [Ely.by](https://ely.by)
-- Быстрое переключение между аккаунтами
+- Авторизация через **Microsoft** — официальные аккаунты, токены обновляются автоматически
 
 </td>
 </tr>
@@ -121,8 +128,10 @@
 | Технология | Rust (нативно) | Java | Electron / Chromium |
 | Изоляция сборок | ✅ Полная | ⚠️ Ограниченная | ⚠️ Зависит от лаунчера |
 | Каталог модов внутри | ✅ Modrinth | ❌ | ✅ Обычно есть |
-| Импорт/экспорт `.mrpack` | ✅ | ❌ | ⚠️ Не у всех |
+| Импорт/экспорт `.mrpack` | ✅ Полная совместимость | ❌ | ⚠️ Не у всех |
+| Авторизация Microsoft | ✅ | ✅ | ⚠️ Не у всех |
 | Сторонние аккаунты (Ely.by) | ✅ | ❌ | ⚠️ Не у всех |
+| Портативная версия | ✅ | ❌ | ⚠️ Не у всех |
 | Типичный размер установщика | Компактный | Средний | Крупный |
 
 > Таблица отражает функциональность на момент актуальной версии Poshat Launcher и приведена для общего ориентира, а не как исчерпывающий бенчмарк.
@@ -131,16 +140,16 @@
 
 ## Скачать и установить
 
-Перейди на страницу [**Releases**](https://github.com/docilan/Poshat-Launcher/releases/latest) и выбери сборку под свою систему:
+Перейди на страницу [**Releases**](https://github.com/kynlox/Poshat-Launcher/releases/latest) и выбери сборку под свою систему:
 
 | Платформа | Формат | Ссылка |
 |---|---|---|
-| Windows x64 | Установщик (`.exe`) | [Скачать](https://github.com/docilan/Poshat-Launcher/releases/latest) |
-| Windows x64 | Portable (`.zip`) | [Скачать](https://github.com/docilan/Poshat-Launcher/releases/latest) |
-| Linux x64 | `.deb` | [Скачать](https://github.com/docilan/Poshat-Launcher/releases/latest) |
-| Linux x64 | AppImage | [Скачать](https://github.com/docilan/Poshat-Launcher/releases/latest) |
+| Windows x64 | Установщик (`.exe`) | [Скачать](https://github.com/kynlox/Poshat-Launcher/releases/latest) |
+| Windows x64 | Portable (`.zip`) | [Скачать](https://github.com/kynlox/Poshat-Launcher/releases/latest) |
+| Linux x64 | `.deb` | [Скачать](https://github.com/kynlox/Poshat-Launcher/releases/latest) |
+| Linux x64 | AppImage | [Скачать](https://github.com/kynlox/Poshat-Launcher/releases/latest) |
 
-**Установка на Windows:** запусти `.exe` и следуй мастеру установки, либо распакуй `.zip` для portable-версии без установки.
+**Установка на Windows:** запусти `.exe` и следуй мастеру установки, либо распакуй `.zip` для portable-версии без установки — все настройки, сборки и моды будут храниться в папке рядом с программой.
 
 **Установка на Linux (`.deb`):**
 ```bash
@@ -181,14 +190,28 @@ chmod +x Poshat-Launcher_*.AppImage
 <summary><b>Мои старые сборки и моды перенесутся?</b></summary>
 <br>
 
-Да, если сборка экспортирована в формате `.mrpack` — этот стандарт поддерживают большинство современных лаунчеров, включая Modrinth App и Prism Launcher.
+Да, если сборка экспортирована в формате `.mrpack` — этот стандарт поддерживают большинство современных лаунчеров, включая Modrinth App и Prism Launcher. При импорте моды скачиваются автоматически с серверов Modrinth.
+</details>
+
+<details>
+<summary><b>Как войти с лицензионным аккаунтом?</b></summary>
+<br>
+
+В разделе «Аккаунты» выбери «Microsoft» — откроется официальная страница входа Microsoft в браузере. После входа лаунчер сам сохранит и будет обновлять токены, повторно входить не нужно.
 </details>
 
 <details>
 <summary><b>Это безопасно? Не украдут ли аккаунт?</b></summary>
 <br>
 
-Авторизация проходит через официальный оффлайн-режим или стороннего провайдера Ely.by. Лаунчер никогда не запрашивает пароль от Mojang/Microsoft аккаунта напрямую.
+Лаунчер никогда не запрашивает пароль от Mojang/Microsoft аккаунта напрямую: вход через Microsoft проходит по официальному OAuth-протоколу в браузере, а оффлайн и Ely.by вообще не работают с паролями Mojang.
+</details>
+
+<details>
+<summary><b>Что такое портативная версия?</b></summary>
+<br>
+
+`.zip`-версия без установки: распаковываешь куда угодно (даже на флешку) — настройки, сборки и моды хранятся в папке рядом с программой, ничего не пишется в системные папки.
 </details>
 
 <details>
@@ -210,10 +233,11 @@ chmod +x Poshat-Launcher_*.AppImage
 ## Безопасность и конфиденциальность
 
 - Лаунчер не запрашивает и не хранит пароль от Mojang/Microsoft аккаунта
+- Авторизация Microsoft проходит по официальному OAuth-протоколу в браузере — лаунчер не видит пароль
 - Обмен данными с каталогом модов идёт напрямую с официальным Modrinth API
 - Установочный пакет защищён от подмены и модификации бинарника
 
-Если ты нашёл уязвимость, пожалуйста, не публикуй детали в открытом Issue — напиши об этом отдельно через раздел [Issues](https://github.com/docilan/Poshat-Launcher/issues) с пометкой `security`, и это будет рассмотрено в приоритетном порядке.
+Если ты нашёл уязвимость, пожалуйста, не публикуй детали в открытом Issue — напиши об этом отдельно через раздел [Issues](https://github.com/kynlox/Poshat-Launcher/issues) с пометкой `security`, и это будет рассмотрено в приоритетном порядке.
 
 ---
 
@@ -224,13 +248,16 @@ chmod +x Poshat-Launcher_*.AppImage
 - [x] Экспорт / импорт `.mrpack`
 - [x] Поддержка Fabric, Forge, NeoForge, Quilt
 - [x] Аккаунты: оффлайн + Ely.by
+- [x] Авторизация Microsoft
+- [x] Портативная версия
+- [x] Обложки и ярлыки сборок
 - [x] Сборки для Linux (`.deb` / AppImage)
 - [ ] Публикация исходного кода
 - [ ] Поддержка macOS
 - [ ] Встроенный менеджер серверов
 - [ ] Синхронизация настроек между устройствами
 
-> Порядок пунктов не отражает приоритет — актуальные обсуждения фич смотри в [Issues с меткой `enhancement`](https://github.com/docilan/Poshat-Launcher/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
+> Порядок пунктов не отражает приоритет — актуальные обсуждения фич смотри в [Issues с меткой `enhancement`](https://github.com/kynlox/Poshat-Launcher/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
 
 ---
 
@@ -238,9 +265,9 @@ chmod +x Poshat-Launcher_*.AppImage
 
 | Что случилось | Куда обращаться |
 |---|---|
-| Нашёл баг | [Создать Bug Report](https://github.com/docilan/Poshat-Launcher/issues/new?template=bug_report.md) |
-| Есть идея для новой функции | [Создать Feature Request](https://github.com/docilan/Poshat-Launcher/issues/new?template=feature_request.md) |
-| Вопрос по установке или использованию | [Открыть Issue](https://github.com/docilan/Poshat-Launcher/issues) |
+| Нашёл баг | [Создать Bug Report](https://github.com/kynlox/Poshat-Launcher/issues/new?template=bug_report.md) |
+| Есть идея для новой функции | [Создать Feature Request](https://github.com/kynlox/Poshat-Launcher/issues/new?template=feature_request.md) |
+| Вопрос по установке или использованию | [Открыть Issue](https://github.com/kynlox/Poshat-Launcher/issues) |
 
 ---
 
@@ -260,7 +287,7 @@ Poshat Launcher существует благодаря открытым API и 
 
 После публикации использование, изменение и распространение кода будет разрешено только с письменного согласия автора.
 
-Хочешь получить доступ раньше официальной публикации или обсудить условия использования — напиши через [Issues](https://github.com/docilan/Poshat-Launcher/issues).
+Хочешь получить доступ раньше официальной публикации или обсудить условия использования — напиши через [Issues](https://github.com/kynlox/Poshat-Launcher/issues).
 
 ---
 
