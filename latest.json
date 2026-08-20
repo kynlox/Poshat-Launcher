@@ -1,6 +1,6 @@
 {
   "version": "v0.1.7",
-  "notes": "Combine of v0.1.7 + v0.1.8: MS auth, .mrpack, crack protection, MSI, auto-update fix, kill-game fix, process renamed to Poshat Launcher",
+  "notes": "Combine of v0.1.7 + v0.1.8: MS auth, .mrpack, crack protection, MSI, auto-update fix",
   "pub_date": "2026-08-20T14:39:40Z",
   "platforms": {
     "windows-x86_64": {
