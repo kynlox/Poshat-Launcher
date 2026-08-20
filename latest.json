@@ -1,11 +1,11 @@
 {
-  "version": "v0.1.5",
-  "notes": "Bugfix: 15 bugs fixed — XSS protection, crash guards, race conditions, memory leaks",
-  "pub_date": "2026-07-25T15:30:00Z",
+  "version": "v0.1.7",
+  "notes": "Combine of v0.1.7 + v0.1.8: MS auth, .mrpack, crack protection, MSI, auto-update fix, kill-game fix, process renamed to Poshat Launcher",
+  "pub_date": "2026-08-20T14:39:40Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "",
-      "url": "https://github.com/docilan/Poshat-Launcher/releases/download/v0.1.5/Poshat%20Launcher_0.1.5_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRaEVPVDNMSFdVenorTG1YOEhCT3dUelFlOVBTSkVIOGZVVzhUalJ4MDdIVlZrRFRXdGE5ckEvMk1MVjN6ZmRDUTRNRktKQ0pWb3hPaWZsMThRN01tTXVDcXJCTWM2V0E0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MjM1NDIwCWZpbGU6UG9zaGF0IExhdW5jaGVyXzAuMS43X3g2NC1zZXR1cC5leGUKRGVLczg4ZTNTMnEwcnAxelJoVnFWOWRQWll2MEkvRmd0VWVBNldycWt4M0hGUGIzMHBvR0dubmx0MFljT2JwOGhHMWdnTDlsWjVYaXNvMUpXNzJ1QVE9PQo=",
+      "url": "https://github.com/kynlox/Poshat-Launcher/releases/download/v0.1.7/Poshat%20Launcher_0.1.7_x64-setup.exe"
     }
   }
 }
