@@ -1,11 +1,11 @@
 {
-  "version": "v0.1.7",
-  "notes": "Combine of v0.1.7 + v0.1.8: MS auth, .mrpack, crack protection, MSI, auto-update fix",
-  "pub_date": "2026-08-20T14:39:40Z",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRaEVPVDNMSFdVenorTG1YOEhCT3dUelFlOVBTSkVIOGZVVzhUalJ4MDdIVlZrRFRXdGE5ckEvMk1MVjN6ZmRDUTRNRktKQ0pWb3hPaWZsMThRN01tTXVDcXJCTWM2V0E0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3MjM1NDIwCWZpbGU6UG9zaGF0IExhdW5jaGVyXzAuMS43X3g2NC1zZXR1cC5leGUKRGVLczg4ZTNTMnEwcnAxelJoVnFWOWRQWll2MEkvRmd0VWVBNldycWt4M0hGUGIzMHBvR0dubmx0MFljT2JwOGhHMWdnTDlsWjVYaXNvMUpXNzJ1QVE9PQo=",
-      "url": "https://github.com/kynlox/Poshat-Launcher/releases/download/v0.1.7/Poshat.Launcher_0.1.7_x64-setup.exe"
-    }
-  }
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTcmhrcXB1dXZzcmRaYnhxK0NtOFJma01VOHpjMUF5ZWVFYXE3bi94SGczMzdNVkx2bkw0cUlsYUxTVGpjTXJ3eHY1UEJocWhUNEVaU2tOUjFGSkpFSW9TUjkzWDBucmdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3OTQ0NjQ4CWZpbGU6UG9zaGF0IExhdW5jaGVyXzAuMS44X3g2NC1zZXR1cC5leGUKQmlxZnhKb1RZcmdpdmUvMTBhRms4WXhXMC9YN2MvWVlGR21QcUhLMXQxUVJZUkpFdHNjak82WWJ6aG1mSVMvWjhQYk5HUmFzZXp5WkU5MytGaFJkQnc9PQo=",
+                                             "url":  "https://github.com/kynlox/Poshat-Launcher/releases/download/0.1.8/Poshat%20Launcher_0.1.8_x64-setup.exe"
+                                         }
+                  },
+    "pub_date":  "2026-08-28T19:18:17Z",
+    "version":  "v0.1.8",
+    "notes":  "Poshat Launcher v0.1.8"
 }
